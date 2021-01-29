@@ -1,19 +1,18 @@
+globalVariables(c("doc_id", "txt_id"))  # make R CMD check happy.
+
 #' Read text from a Wprd document and convert to plain text format
 #'
 #' @param destdir Destination path. Where the files will be saved.
 #' @param docxfiles Character vector containing the filepath(s) of
 #' the Word documents to be converted.
 #'
+#' @import dplyr
 #' @import stringr
-#' @importFrom dplyr mutate
 #' @importFrom readtext readtext
 #' @importFrom purrr walk2
 #'
 #' @export
 read_transcript <- function(destdir, docxfiles) {
-  require(stringr)
-  require(dplyr, warn.conflicts = FALSE)
-
   docdt <- readtext::readtext(docxfiles)
 
   make_safe_names <- function(str, to.lower = FALSE) {

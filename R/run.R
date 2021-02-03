@@ -1,9 +1,12 @@
 #' Run RQDA
 #'
 #' Start up RQDA in a given session.
-#' 
+#'
 #' @export
 run <- function() {
-  if (!require(RQDA, quietly = TRUE))
-    stop("RQDA is not installed")
+  p <- "RQDA"
+  if (!requireNamespace(p, quietly = TRUE))
+    stop(paste(p, "is not installed"))
+  if(!p %in% .packages()) return()
+  attachNamespace(p)
 }

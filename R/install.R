@@ -71,7 +71,7 @@ install <- function(verbose = FALSE)
     }
   }
 
-  .install_init(c('devtools', 'cairoDevice'))
+  .install_init(c('devtools', 'cairoDevice', "igraph"))
 
   .check_buildtools()
 

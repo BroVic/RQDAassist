@@ -3,7 +3,7 @@
 export(install)
 export(read_transcript)
 export(retrieve_codingtable)
-export(run)
+export(start)
 import(dplyr)
 import(stringr)
 importFrom(devtools,has_devel)

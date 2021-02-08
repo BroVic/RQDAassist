@@ -1,14 +1,15 @@
 Package: RQDAassist
 Type: Package
 Title: Helpers for RQDA
-Version: 0.0.0.9003
+Version: 0.0.0.9005
 Authors@R: person("Victor", "Ordu", email = "victorordu@outlook.com",
     role = c("aut", "cre"))
 Maintainer: Victor Ordu <victorordu@outlook.com>
 Description: Provides functions that make it easier to work with RQDA.
 Depends: 
-    R(>= 4.0),
-    utils (>= 4.0.3)
+    R (>= 4.0),
+    utils (>= 4.0.3),
+    RSQLite (>= 2.2.2)
 Imports:
     dplyr (>= 1.0.0),
     devtools (>= 2.3.2),

@@ -1,7 +1,7 @@
 Package: RQDAassist
 Type: Package
 Title: Helpers for RQDA
-Version: 0.0.0.9005
+Version: 0.1.0
 Authors@R: person("Victor", "Ordu", email = "victorordu@outlook.com",
     role = c("aut", "cre"))
 Maintainer: Victor Ordu <victorordu@outlook.com>
@@ -11,12 +11,10 @@ Depends:
     utils (>= 4.0.3),
     RSQLite (>= 2.2.2)
 Imports:
-    dplyr (>= 1.0.0),
     devtools (>= 2.3.2),
-    purrr (>= 0.3.4),
-    readtext (>= 0.80),
-    stringr (>= 1.4.0)
-Suggests: RQDA (>= 0.3.1)
+Suggests: 
+    RQDA (>= 0.3.1),
+    lifecycle (>= 0.2.0)
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

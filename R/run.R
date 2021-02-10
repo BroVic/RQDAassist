@@ -2,6 +2,8 @@
 #'
 #' Start up RQDA in a given session.
 #'
+#' @import RSQLite
+#'
 #' @note Also attaches RSQLite package to the search path
 #'
 #' @export

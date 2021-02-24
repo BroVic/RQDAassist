@@ -2,9 +2,11 @@
 
 export(install)
 export(read_transcript)
+export(search_codes)
 export(start)
 import(RSQLite)
 import(stringr)
+importFrom(RQDA,getCodingTable)
 importFrom(devtools,has_devel)
 importFrom(devtools,install_version)
 importFrom(dplyr,mutate)

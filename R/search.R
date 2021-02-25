@@ -1,8 +1,5 @@
-
-
+globalVariables("codename")
 #' Search for codes using a given term
-#'
-#' @importFrom RQDA getCodingTable
 #'
 #' @param searchterm A string.
 #'
@@ -15,6 +12,7 @@ search_codes <- function(searchterm) {
     stop("Expected a string as argument")
   if (!nchar(searchterm))
     stop("Search cannot be conducted with an empty string")
-  cdt <- getCodingTable()
+  start()
+  cdt <- eval(call("getCodingTable"))
   subset(cdt, grepl(searchterm, codename, ignore.case = TRUE))
 }

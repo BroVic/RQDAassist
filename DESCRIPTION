@@ -6,15 +6,21 @@ Authors@R: person("Victor", "Ordu", email = "victorordu@outlook.com",
     role = c("aut", "cre"))
 Maintainer: Victor Ordu <victorordu@outlook.com>
 Description: Provides functions that make it easier to work with RQDA.
-Depends: R(>= 4.0)
+Depends: 
+    R (>= 4.0),
+    utils (>= 4.0.3),
+    RSQLite (>= 2.2.2)
 Imports:
+    devtools (>= 2.3.2),
     dplyr (>= 1.0.0),
     purrr (>= 0.3.4),
     readtext (>= 0.80),
     stringr (>= 1.4.0)
+Suggests: 
+    RQDA (>= 0.3.1),
+    lifecycle (>= 0.2.0),
+    testthat
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.1
-Suggests: 
-    testthat

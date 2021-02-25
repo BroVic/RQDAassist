@@ -9,11 +9,10 @@
 #' @importFrom readtext readtext
 #' @importFrom purrr walk2
 #'
+#' @return A character vector containing the paths of the generated text files.
+#'
 #' @export
 read_transcript <- function(destdir, docxfiles) {
-  require(stringr)
-  require(dplyr, warn.conflicts = FALSE)
-
   docdt <- readtext::readtext(docxfiles)
 
   make_safe_names <- function(str, to.lower = FALSE) {
@@ -33,6 +32,19 @@ read_transcript <- function(destdir, docxfiles) {
     mutate(txt_id = str_replace(doc_id, '(.+)(\\.docx?$)', '\\1.txt')) %>%
     mutate(txt_id = make_safe_names(txt_id))
 
+  .createFileAndReturnPath <- function(txt, fname) {
+    fpath <- file.path(destdir, fname)
+    cat(txt, file = fpath)
+    normalizePath(fpath)
+  }
+
   docdt$text %>%
-    purrr::walk2(docdt$txt_id, ~ cat(.x, file = file.path(destdir, .y)))
+    purrr::map2_chr(docdt$txt_id, .createFileAndReturnPath)
 }
+
+
+
+
+
+
+

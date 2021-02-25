@@ -12,6 +12,9 @@ read_transcript(destdir, docxfiles)
 \item{docxfiles}{Character vector containing the filepath(s) of
 the Word documents to be converted.}
 }
+\value{
+A character vector containing the paths of the generated text files.
+}
 \description{
 Read text from a Wprd document and convert to plain text format
 }

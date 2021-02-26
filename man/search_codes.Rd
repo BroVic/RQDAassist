@@ -4,14 +4,18 @@
 \alias{search_codes}
 \title{Search for codes using a given term}
 \usage{
-search_codes(searchterm)
+search_codes(searchterm, codes.only = TRUE)
 }
 \arguments{
 \item{searchterm}{A string.}
+
+\item{codes.only}{Logical; whether to fetch only the codes or a table with
+other related variables. Defaults to \code{TRUE}.}
 }
 \value{
 An object of class \code{data.frame}, which is subset of the coding
-table.
+table, or in the case of \code{codes.only == TRUE}, a list of matching
+codes.
 }
 \description{
 Search for codes using a given term

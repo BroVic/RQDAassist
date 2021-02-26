@@ -1,7 +1,7 @@
 library(stringi)
 
 
-test_that("multiplication works", {
+test_that("FileList is created", {
   dir <- "data"
   fname1 <- "lipsum2.txt"
   fname2 <- "lipsum3.txt"

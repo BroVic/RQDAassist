@@ -66,12 +66,6 @@ the time of writing, it has only been tested on Windows 10, x64. You are
 welcome to test it on other platforms and let me know what does not work
 so we can improve it.
 
-## Future work
-
-There are a few functions under development aimed at making it easier to
-work with RQDA, e.g. querying coding tables. They can be seen on the
-`dev` branch.
-
 ## Contributions/Feedback
 
 This is an experimental package and thus feedback is welcome. If you run

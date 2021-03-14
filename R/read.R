@@ -1,8 +1,14 @@
+globalVariables(c("doc_id", "txt_id"))
+
 #' Read text from a Wprd document and convert to plain text format
 #'
 #' @param destdir Destination path. Where the files will be saved.
 #' @param docxfiles Character vector containing the filepath(s) of
 #' the Word documents to be converted.
+#'
+#' @details When \code{destdir} is unchanged, the function uses the current
+#' working directory as the location for saving any files converted from
+#' Word.
 #'
 #' @import stringr
 #' @importFrom dplyr mutate

@@ -18,3 +18,8 @@ A character vector containing the paths of the generated text files.
 \description{
 Read text from a Wprd document and convert to plain text format
 }
+\details{
+When \code{destdir} is unchanged, the function uses the current
+working directory as the location for saving any files converted from
+Word.
+}

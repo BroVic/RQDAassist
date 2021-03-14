@@ -1,7 +1,7 @@
 Package: RQDAassist
 Type: Package
 Title: Helpers for RQDA
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: person("Victor", "Ordu", email = "victorordu@outlook.com",
     role = c("aut", "cre"))
 Maintainer: Victor Ordu <victorordu@outlook.com>

@@ -90,7 +90,7 @@ install <- function(verbose = FALSE)
           line1 = paste("Installing 'RGtk2'. If it fails, use",
                         "`install.packages` in R console ... "),
           line2 = paste("Run `library(RGtk2)` in R to install",
-                        "Gtk+. Then, rerun this script.")
+                        "Gtk+. Then, rerun this function.")
         )
 
       # Custom error condition

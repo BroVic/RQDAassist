@@ -17,6 +17,7 @@ knitr::opts_chunk$set(
 
 <!-- badges: start -->
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
+[![R-CMD-check](https://github.com/BroVic/RQDAassist/workflows/R-CMD-check/badge.svg)](https://github.com/BroVic/RQDAassist/actions)
 <!-- badges: end -->
 
 The powerful computer-aided qualitative data analysis (CAQDAS) package [RQDA](http://rqda.r-forge.r-project.org/) can, even on a good day, be slightly challenging to install. This is particularly so for researchers who are not that much into the programming side of things. 

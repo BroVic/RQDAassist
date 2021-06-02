@@ -1,6 +1,8 @@
 globalVariables(c("doc_id", "txt_id"))
 
-#' Read text from a Wprd document and convert to plain text format
+#' Create Text Files from Word
+#'
+#' Read text from a Word document and convert to plain text format
 #'
 #' @param destdir Destination path. Where the files will be saved.
 #' @param docxfiles Character vector containing the filepath(s) of
@@ -46,7 +48,8 @@ read_transcript <- function(destdir, docxfiles) {
   }
 
   docdt$text %>%
-    purrr::map2_chr(docdt$txt_id, .createFileAndReturnPath)
+    purrr::map2_chr(docdt$txt_id, .createFileAndReturnPath) %>%
+    invisible
 }
 
 

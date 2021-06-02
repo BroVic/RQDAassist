@@ -2,7 +2,7 @@
 % Please edit documentation in R/read.R
 \name{read_transcript}
 \alias{read_transcript}
-\title{Read text from a Wprd document and convert to plain text format}
+\title{Create Text Files from Word}
 \usage{
 read_transcript(destdir, docxfiles)
 }
@@ -16,7 +16,7 @@ the Word documents to be converted.}
 A character vector containing the paths of the generated text files.
 }
 \description{
-Read text from a Wprd document and convert to plain text format
+Read text from a Word document and convert to plain text format
 }
 \details{
 When \code{destdir} is unchanged, the function uses the current

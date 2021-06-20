@@ -11,6 +11,7 @@
 #'
 #' @importFrom devtools has_devel
 #' @importFrom devtools install_version
+#' @importFrom purrr iwalk
 #' @importFrom utils install.packages
 #'
 #' @param verbose logical.
@@ -18,172 +19,209 @@
 #' @export
 install <- function(verbose = FALSE)
 {
-  ## Provides the index to CRAN directory
-  cran.index <- function() {
-    c("https://cran.r-project.org")
+  # Message prints only once after package is loaded (see zzz.R)
+  if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
+    Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
+    cat(paste(
+      c(
+        "This function will install an archived version of RQDA.",
+        "However, an updated working version now exists on GitHub.",
+        "Should you rather want to install that one, visit",
+        "https://github.com/Ronggui/RQDA for instructions."
+      )
+    ))
+    ans <-
+      readline("Install archived version? Just <ENTER> to continue or 'q' to quit: ")
+    if (tolower(ans) == 'q')
+      return(invisible())
   }
 
-  ## Returns the address to RStudio's CRAN mirror
-  rstudio <- function() {
-    c('https://cran.rstudio.com')
-  }
-
-  local_gtk_bin_path <- function(pkg = 'RGtk2') {
-    gtkdir <- file.path(.libPaths()[1], pkg, 'gtk')
-    file.path(gtkdir, .Platform$r_arch)
-  }
-
-
-  ## Installs initial packages required by the script.
-  ## What makes these ones special is that they are
-  ## current package versions from CRAN and they are
-  ## downloaded as binaries.
-  ## @param cranry A character vector of packages.
-  .install_init <- function(cranbry) {
-    stopifnot(is.character(cranbry))
-    tryCatch({
-      notInstalled <-
-        cranbry[!cranbry %in% .packages(all.available = TRUE)]
-      install.packages(notInstalled, repos = rstudio(), quiet = !verbose)
-    }, error = function(e) {
-      stop(sprintf(
-        "Initialization failed. Install %s",
-        paste(cranbry, collapse = ', ')
-      ))
-    })
-  }
-
-
-  ## Checks the availability of Rtools on Windows (v35)
-  .check_buildtools <- function() {
-    if (!devtools::has_devel()) {
-      if (.Platform$OS.type == 'windows') {
-        toolsUrl <-
-          file.path(cran.index(),
-                    "bin",
-                    .Platform$OS.type,
-                    "Rtools/history.html")
-        errBuildtools <-
-          sprintf("Build tools were not found. Please visit %s to install.",
-                  toolsUrl)
-        stop(errBuildtools, call. = TRUE)
-      }
-    }
-  }
-
-  .install_init(c('cairoDevice', "igraph"))
+  .install_init(c('cairoDevice', "igraph"), verbose)
 
   .check_buildtools()
 
-  ## Installs a given CRAN archive
-  ## @param name Name of the package
-  ## @param ver The package version
-  inst <- function(name, ver) {
-    rgtk2 <- "RGtk2"
-    archOpts <- "--no-multiarch"
-    isRGtk2 <- name == rgtk2
-    pkgExists <- quote(name %in% .packages(all.available = TRUE))
+  iwalk(
+    c(
+      RGtk2 = "2.20.36",
+      gWidgets = '0.0-54.2',
+      gWidgetsRGtk2 = '0.0-86',
+      RQDA = '0.3-1'
+    ),
+    installEachPackageByVersion,
+    verbose = verbose
+  )
+}
 
-    if (isRGtk2) {
-      msgRGtk2 <-
-        list(
-          line1 = paste("Installing 'RGtk2'. If it fails, use",
-                        "`install.packages` in R console ... "),
-          line2 = paste("Run `library(RGtk2)` in R to install",
-                        "Gtk+. Then, rerun this function.")
+
+
+
+
+
+# Internal functions ----
+
+## Provides the index to CRAN directory
+cran.index <- function() {
+  c("https://cran.r-project.org")
+}
+
+## Returns the address to RStudio's CRAN mirror
+rstudio <- function() {
+  c('https://cran.rstudio.com')
+}
+
+local_gtk_bin_path <- function(pkg = 'RGtk2') {
+  gtkdir <- file.path(.libPaths()[1], pkg, 'gtk')
+  file.path(gtkdir, .Platform$r_arch)
+}
+
+## Installs initial packages required by the script.
+## What makes these ones special is that they are
+## current package versions from CRAN and they are
+## downloaded as binaries.
+## @param cranry A character vector of packages.
+.install_init <- function(cranbry, verbose) {
+  stopifnot(is.character(cranbry))
+  tryCatch({
+    notInstalled <-
+      cranbry[!cranbry %in% .packages(all.available = TRUE)]
+    install.packages(notInstalled,
+                     repos = rstudio(),
+                     quiet = !verbose)
+  }, error = function(e) {
+    stop(sprintf(
+      "Initialization failed. Install %s",
+      paste(cranbry, collapse = ', ')
+    ))
+  })
+}
+
+
+## Checks the availability of Rtools on Windows
+.check_buildtools <- function() {
+  if (!devtools::has_devel()) {
+    if (.Platform$OS.type == 'windows') {
+      toolsUrl <-
+        file.path(cran.index(),
+                  "bin",
+                  .Platform$OS.type,
+                  "Rtools/history.html")
+      errBuildtools <-
+        sprintf("Build tools were not found. Please visit %s to install.",
+                toolsUrl)
+      stop(errBuildtools, call. = TRUE)
+    }
+  }
+}
+
+
+## Installs a given CRAN archive
+## @param name Name of the package
+## @param ver The package version
+installEachPackageByVersion <- function(ver, name, verbose) {
+  stopifnot(is.character(ver))
+  stopifnot({
+    is.character(name) && length(name) == 1L
+  })
+
+  rgtk2 <- "RGtk2"
+  archOpts <- "--no-multiarch"
+  isRGtk2 <- name == rgtk2
+  pkgExists <- quote(name %in% .packages(all.available = TRUE))
+
+  if (isRGtk2) {
+    msgRGtk2 <-
+      list(
+        line1 = paste(
+          "Installing 'RGtk2'. If it fails, use",
+          "`install.packages` in R console ... "
+        ),
+        line2 = paste(
+          "Run `library(RGtk2)` in R to install",
+          "Gtk+. Then, rerun this function."
         )
+      )
 
-      # Custom error condition
-      abortRgtk2 <- function() {
-        msg <-
-          sprintf("Could not install %s. Try doing so in R console", rgtk2)
-        stop(msg, call. = FALSE)
-      }
-
-      ## Install RGtk2
-      ## Per RGtk2/R/zzz.R, Gtk+ can only be installed interactively.
-      if (!eval(pkgExists)) {
-        message(msgRGtk2$line1, appendLF = verbose)
-
-        tryCatch({
-          install.packages(
-            rgtk2,
-            repos = rstudio(),
-            INSTALL_opts = archOpts,
-            quiet = !verbose,
-            verbose = verbose
-          )
-          message("Done")
-        },
-        error = function(e) {
-          message("Failed")
-          abortRgtk2()
-        },
-        warning = function(w) {
-          wrnmsg <- "cannot remove prior installation of package 'RGtk2'"
-          if (conditionMessage(w) == wrnmsg)
-            abortRgtk2()
-        },
-        finally = return(message(msgRGtk2$line2)))
-      }
+    # Custom error condition
+    abortRgtk2 <- function() {
+      msg <-
+        sprintf("Could not install %s. Try doing so in R console", rgtk2)
+      stop(msg, call. = FALSE)
     }
 
-    ## Avoid repeat installations via an early return
-    ## If we're dealing with RGtk2, just stop the script
-    ## and install Gtk+ interactively, if it is required.
-    if (eval(pkgExists)) {
-      message(sQuote(name), " is already installed")
-      if (isRGtk2) {
+    ## Install RGtk2
+    ## Per RGtk2/R/zzz.R, Gtk+ can only be installed interactively.
+    if (!eval(pkgExists)) {
+      message(msgRGtk2$line1, appendLF = verbose)
 
-        # Consider that directory may be a dud.
-        if (!dir.exists(local_gtk_bin_path(rgtk2))) {
-          message(msgRGtk2$line2)
-          stop('Execution stopped.', call. = FALSE)
-        }
-      }
-      return()
-    }
-
-    ## Grab the package archives as desired.
-    ## When installing them, the following are considered:
-    ##   => asking for upgrade interrupts installation
-    ##   => install only one of 32- or 64-bit, not both
-    ## But first, if RGtk2 is not present, there's no
-    ## point trying to install packages that depend on it.
-    isRgtkDep <- (name == 'gWidgetsRGtk2' || name == 'RQDA')
-    rgtkNotReady <- !(rgtk2 %in% .packages(all.available = TRUE) &&
-                       dir.exists(local_gtk_bin_path(rgtk2)))
-    if (isRgtkDep && rgtkNotReady) {
-      message(sQuote(name), " was not installed because RGtk2 is not ready")
-      return()
-    }
-
-    tryCatch({
-      msg <- sprintf("Installing '%s' ... ", name)
-      message(msg, appendLF = verbose)
-
-      if (!isRGtk2)
-        devtools::install_version(
-          name,
-          ver,
-          repos = cran.index(),
+      tryCatch({
+        install.packages(
+          rgtk2,
+          repos = rstudio(),
+          INSTALL_opts = archOpts,
           quiet = !verbose,
-          upgrade = "never",
-          INSTALL_opts = archOpts
+          verbose = verbose
         )
-      message("Done")
-    },
-    error = function(e) {
-      message("Failed")
-    })
+        message("Done")
+      },
+      error = function(e) {
+        message("Failed")
+        abortRgtk2()
+      },
+      warning = function(w) {
+        wrnmsg <- "cannot remove prior installation of package 'RGtk2'"
+        if (conditionMessage(w) == wrnmsg)
+          abortRgtk2()
+      },
+      finally = return(message(msgRGtk2$line2)))
+    }
+  }
 
-  } # end inst()
+  ## Avoid repeat installations via an early return
+  ## If we're dealing with RGtk2, just stop the script
+  ## and install Gtk+ interactively, if it is required.
+  if (eval(pkgExists)) {
+    message(sQuote(name), " is already installed")
+    if (isRGtk2) {
+      # Consider that directory may be a dud.
+      if (!dir.exists(local_gtk_bin_path(rgtk2))) {
+        message(msgRGtk2$line2)
+        stop('Execution stopped.', call. = FALSE)
+      }
+    }
+    return()
+  }
 
-  pkgversions <- c(RGtk2 = "2.20.36",
-                   gWidgets = '0.0-54.2',
-                   gWidgetsRGtk2 = '0.0-86',
-                   RQDA = '0.3-1')
+  ## Grab the package archives as desired.
+  ## When installing them, the following are considered:
+  ##   => asking for upgrade interrupts installation
+  ##   => install only one of 32- or 64-bit, not both
+  ## But first, if RGtk2 is not present, there's no
+  ## point trying to install packages that depend on it.
+  isRgtkDep <- (name == 'gWidgetsRGtk2' || name == 'RQDA')
+  rgtkNotReady <- !(rgtk2 %in% .packages(all.available = TRUE) &&
+                      dir.exists(local_gtk_bin_path(rgtk2)))
+  if (isRgtkDep && rgtkNotReady) {
+    message(sQuote(name), " was not installed because RGtk2 is not ready")
+    return()
+  }
 
-  invisible(Map(inst, names(pkgversions), pkgversions))
+  tryCatch({
+    msg <- sprintf("Installing '%s' ... ", name)
+    message(msg, appendLF = verbose)
+
+    if (!isRGtk2)
+      devtools::install_version(
+        name,
+        ver,
+        repos = cran.index(),
+        quiet = !verbose,
+        upgrade = "never",
+        INSTALL_opts = archOpts
+      )
+    message("Done")
+  },
+  error = function(e) {
+    message("Failed")
+  })
 
 }

@@ -66,16 +66,13 @@ jobs:
       - name: Install dependencies
         run: |
           remotes::install_deps(dependencies = NA)
-          remotes::install_cran(c("rcmdcheck", "igraph"))
-          remotes::install_version("gWidgets", version = '0.0-54.2')
-          remotes::install_version("RGtk2", version = "2.20.36")
-          remotes::install_version("gWidgetsRGtk2", version = '0.0-86')
-          remotes::install_version("RQDA", version = "0.3.1")
+          remotes::install_cran("rcmdcheck")
         shell: Rscript {0}
 
       - name: Check
         env:
           _R_CHECK_CRAN_INCOMING_REMOTE_: false
+          _R_CHECK_FORCE_SUGGESTS_: false
         run: |
           options(crayon.enabled = TRUE)
           rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", check_dir = "check")

@@ -2,9 +2,12 @@
 % Please edit documentation in R/install.R
 \name{install}
 \alias{install}
+\alias{install_rgtk2_and_deps}
 \title{Install RQDA Archive}
 \usage{
 install(verbose = TRUE)
+
+install_rgtk2_and_deps()
 }
 \arguments{
 \item{verbose}{logical.}
@@ -13,9 +16,11 @@ install(verbose = TRUE)
 Install RQDA from CRAN archives and also while performing an installation of
 its core dependencies namely, RGtk2, gWidgets, and gWidgetsRGtk2.
 }
-\note{
-If Gtk+ is not properly installed, this function will stop
-and require the user to to install it. Once this is done, this
-function should be run again to complete the installation of the
-packages that directly or indirectly depend on it.
+\details{
+The \code{install} function carries out wholesale installation of
+all the packages required by RQDA, before actually installing it.
+
+\code{install_rgtk2_and_deps()} installs RGtk2. Before doing so, it fetches
+the Gtk+ distribution, making it available for RGtk2 compilation and
+subsequent usage as a package.
 }

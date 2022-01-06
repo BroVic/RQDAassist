@@ -47,23 +47,14 @@ RQDAassist::install()
 ```
 
 This will start the process of fetching the packages that RQDA needs to
-be installed and work properly. If the package **RGtk2** is freshly
-installed on the machine, the function will stop. This is to enable the
-user install the graphics library **Gtk+**, which cannot be done without
-user interaction. So, at this point, try to load the package:
-
-``` r
-library(RGtk2)
-```
-
-The user will now be presented with a dialog, offering to install Gtk+.
-Accept and once successful, run `RQDAassist::install()` again to
-conclude the installation of RQDA.
+be installed and work properly. If the package **RGtk2** needs to be
+installed, **its** dependencies will first be downloaded and the package
+will be compiled from source. This process takes a while, so be patient!
 
 ## System Requirements
 
 Ultimately, this package needs to work on Window, Linux and Mac. But at
-the time of writing, it has only been tested on Windows 10, x64. You are
+the time of writing, it has only been tested on Windows 10 x64. You are
 welcome to test it on other platforms and let me know what does not work
 so we can improve it.
 

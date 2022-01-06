@@ -4,15 +4,14 @@
 \alias{install}
 \title{Install RQDA Archive}
 \usage{
-install(verbose = FALSE)
+install(verbose = TRUE)
 }
 \arguments{
 \item{verbose}{logical.}
 }
 \description{
-Install RQDA from CRAN while it is archived while performing an
-installation of current and archived packages upon which it depends.
-The key packages mentioned are RGtk2, gWidgets and gWidgetsRGtk2.
+Install RQDA from CRAN archives and also while performing an installation of
+its core dependencies namely, RGtk2, gWidgets, and gWidgetsRGtk2.
 }
 \note{
 If Gtk+ is not properly installed, this function will stop

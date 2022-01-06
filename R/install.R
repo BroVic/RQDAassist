@@ -34,6 +34,13 @@ install <- function(verbose = TRUE)
 
   .check_buildtools()
 
+  if (!.rgtk2IsInstalled() && .Platform$OS.type != 'windows') {
+    warning(
+      "Automatic compilation/installation of RGtk2 is only available on Windows"
+    )
+    return()
+  }
+
   install_rgtk2_and_deps()
 
   iwalk(

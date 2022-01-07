@@ -30,9 +30,39 @@ install <- function(verbose = TRUE)
       return(invisible())
   }
 
-  .install_init(c('cairoDevice', "igraph"), verbose)
+  ## Checks the availability of Rtools on Windows
+  ## and if absent, tell user where to obtain it.
+  if (!devtools::has_devel()) {
+    if (.Platform$OS.type == 'windows') {
+      toolsUrl <-
+        file.path(cran.index(),
+                  "bin",
+                  .Platform$OS.type,
+                  "Rtools/history.html")
+      errBuildtools <-
+        sprintf("Build tools were not found. Please visit %s to install.",
+                sQuote(toolsUrl))
+      stop(errBuildtools, call. = FALSE)
+    }
+  }
 
-  .check_buildtools()
+  ## Install initial packages required by RQDA.
+  ## What makes these ones special is that they are
+  ## current package versions from CRAN and they are
+  ## downloaded as binaries.
+  pkgs <- c("igraph")   # old code had more than 1 package!
+  # notInst <- pkgs[!pkgs %in% .packages(all.available = TRUE)]
+  instTyp <- if (.Platform$OS.type == "windows") "binary" else "source"
+  if (!(pkgs %in% .packages(all.available = TRUE))) {
+    tryCatch({
+      install.packages(pkgs,
+                       repos = rstudio(),
+                       quiet = !verbose,
+                       type = instTyp)
+    }, error = function(e)
+      stop(conditionMessage(e), call. = FALSE)
+    )
+  }
 
   if (!.rgtk2IsInstalled() && .Platform$OS.type != 'windows') {
     warning(
@@ -45,6 +75,7 @@ install <- function(verbose = TRUE)
 
   iwalk(
     c(
+      cairoDevice = "2.28.2",
       gWidgets = '0.0-54.2',
       gWidgetsRGtk2 = '0.0-86',
       RQDA = '0.3-1'
@@ -78,49 +109,6 @@ rstudio <- function() {
   gtkdir <- file.path(.libPaths()[1], 'RGtk2', 'gtk')
   file.path(gtkdir, .Platform$r_arch)
 }
-
-
-
-## Installs initial packages required by the script.
-## What makes these ones special is that they are
-## current package versions from CRAN and they are
-## downloaded as binaries.
-## @param cranry A character vector of packages.
-.install_init <- function(cranbry, verbose) {
-  stopifnot(is.character(cranbry))
-  tryCatch({
-    notInstalled <-
-      cranbry[!cranbry %in% .packages(all.available = TRUE)]
-    install.packages(notInstalled,
-                     repos = rstudio(),
-                     quiet = !verbose)
-  }, error = function(e) {
-    stop(sprintf(
-      "Initialization failed. Install %s",
-      paste(cranbry, collapse = ', ')
-    ))
-  })
-}
-
-
-
-## Checks the availability of Rtools on Windows
-.check_buildtools <- function() {
-  if (!devtools::has_devel()) {
-    if (.Platform$OS.type == 'windows') {
-      toolsUrl <-
-        file.path(cran.index(),
-                  "bin",
-                  .Platform$OS.type,
-                  "Rtools/history.html")
-      errBuildtools <-
-        sprintf("Build tools were not found. Please visit %s to install.",
-                toolsUrl)
-      stop(errBuildtools, call. = TRUE)
-    }
-  }
-}
-
 
 
 
@@ -242,7 +230,7 @@ install_rgtk2_and_deps <- function()
 
     tryCatch({
       download.file(rurl, rtar)
-      if (!untar(rtar, exdir = tmpdir, verbose = TRUE))
+      if (untar(rtar, exdir = tmpdir, verbose = TRUE))
         stop("Extraction of RGtk2 tarball failed")
       file.remove(rtar)
     }, error = function(e) stop(e))

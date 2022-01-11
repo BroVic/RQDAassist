@@ -80,12 +80,12 @@ install <- function(verbose = TRUE)
   if (interactive()) {
     if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
       Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
-      cont <- " Continue (Y/N)?"
+      cont <- "Continue (Y/N)? "
 
-      prompt <- paste("This installation may be lengthy.", cont)
+      prompt <- paste("This installation may take some time.", cont)
       ans <- tolower(readline(prompt))
       repeat {
-        pos <- regexpr("^(yes|no)$", ans)
+        pos <- regexpr("^(y(es)?|no?)$", ans)
         if (pos > 0)
           break
         ans <- readline(paste("Invalid input", cont))

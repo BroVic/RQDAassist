@@ -19,24 +19,16 @@
 #' @export
 install <- function(verbose = TRUE)
 {
-  # Message prints only once after package is loaded (see zzz.R)
-  if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
-    Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
-    cat("You are about to install archived versions of RQDA and its dependencies.\n")
-    ans <-
-      readline("Hit <ENTER> to continue or 'q' to quit: ")
-    if (tolower(ans) == 'q')
-      return(invisible())
-  }
+  .startupPrompt()
 
-  ## Checks the availability of Rtools on Windows
-  ## and if absent, tell user where to obtain it.
-  if (!devtools::has_devel()) {
+  ## Check for the availability of Rtools on Windows
+  ## and if absent, tell the user where to get it.
+  if (!devtools::has_devel(quiet = TRUE)) {
     if (.Platform$OS.type == 'windows') {
       toolsUrl <-
         file.path(.cranIndex(), "bin", .Platform$OS.type, "Rtools/history.html")
       stop(sprintf(
-        "Build tools were not found. Please visit %s to install.",
+        "Your system is not ready to build packages. Please visit %s to install Rtools.",
         sQuote(toolsUrl)
       ),
       call. = FALSE)
@@ -64,7 +56,7 @@ install <- function(verbose = TRUE)
   install_rgtk2_and_deps()
 
   iwalk(
-    c(
+    c(  # These are archived packages and their latest versions
       cairoDevice = "2.28.2",
       gWidgets = '0.0-54.2',
       gWidgetsRGtk2 = '0.0-86',
@@ -82,6 +74,29 @@ install <- function(verbose = TRUE)
 
 # Internal functions ----
 
+# Prompts the user - only once after package is loaded (see zzz.R)
+.startupPrompt <- function()
+{
+  if (interactive()) {
+    if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
+      Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
+      cont <- " Continue (Y/N)?"
+
+      prompt <- paste("This installation may be lengthy.", cont)
+      ans <- tolower(readline(prompt))
+      repeat {
+        pos <- regexpr("^(yes|no)$", ans)
+        if (pos > 0)
+          break
+        ans <- readline(paste("Invalid input", cont))
+      }
+      ans <- substr(ans, pos - 1, pos)
+      if (tolower(ans) == 'n')
+        return(invisible())
+    }
+  }
+
+}
 
 
 ## Reports end result of a given operation
@@ -296,12 +311,12 @@ install_rgtk2_and_deps <- function()
   # Get a copy of the GTK+ distribution for RGtk2's internal use
   gtk.int.path <- .localGtkPath()
   if (dir.exists(gtk.int.path))
-    return()
+    return(invisible())
   withCallingHandlers(
     dir.create(gtk.int.path, recursive = TRUE),
     warning = function(w) {
       warning("Run `library(RGtk2)` to install Gtk+ when prompted")
-      return()
+      return(invisible())
     }
   )
 

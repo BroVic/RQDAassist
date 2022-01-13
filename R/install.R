@@ -45,7 +45,7 @@ install <- function(verbose = TRUE)
   if (!(pkgs %in% .packages(all.available = TRUE))) {
     tryCatch({
       install.packages(pkgs,
-                       repos = .rstudioMirror(),
+                       repos = 'https://cran.rstudio.com',
                        quiet = !verbose,
                        type = instTyp)
     }, error = function(e)
@@ -99,6 +99,10 @@ install <- function(verbose = TRUE)
 }
 
 
+
+
+
+
 ## Reports end result of a given operation
 .report <- function()
 {
@@ -127,20 +131,11 @@ install <- function(verbose = TRUE)
 
 
 
-## Returns the address to RStudio's CRAN mirror
-.rstudioMirror <- function() {
-  c('https://cran.rstudio.com')
-}
-
-
-
-
-
 
 
 .localGtkPath <- function() {
-  gtkdir <- file.path(.libPaths()[1], 'RGtk2', 'gtk')
-  file.path(gtkdir, .Platform$r_arch)
+  pkgpath <- system.file(package = "RGtk2")
+  file.path(pkgpath, 'gtk', .Platform$r_arch)
 }
 
 
@@ -177,7 +172,7 @@ install <- function(verbose = TRUE)
   ## If we're dealing with RGtk2, just stop the script
   ## and install Gtk+ interactively, if it is required.
   if (eval(pkgExists)) {
-    cat(sQuote(name), "is already installed\n")
+    cat(name, "is already installed\n")
     return()
   }
 
@@ -188,10 +183,14 @@ install <- function(verbose = TRUE)
   ## But first, if RGtk2 is not present, there's no
   ## point trying to install packages that depend on it.
   dependsOnRgtk2 <- (name == 'gWidgetsRGtk2' || name == 'RQDA')
-  rgtk2NotReady <-
+
+  rgtk2NotReady <- if (.onWindows())
     !(.rgtk2IsInstalled() && dir.exists(.localGtkPath()))
+  else
+    isFALSE(.rgtk2IsInstalled())
+
   if (dependsOnRgtk2 && rgtk2NotReady) {
-    warning(sQuote(name), " was not installed because RGtk2 is not ready")
+    warning(name, " was not installed because RGtk2 is not ready")
     return()
   }
 
@@ -277,8 +276,15 @@ install_rgtk2_and_deps <- function()
     cat(.report()$success)
   }
   else if (R.version$platform == "x86_64-pc-linux-gnu") {
+    sudoInstall <- "sudo apt-get install -y libgtk2.0-dev"
+    if (!interactive()) {
+      stop("The system dependencies cannot be installed non-interactively",
+           "Please do this in an active R session, or at a Terminal using ",
+           sQuote(sudoInstall))
+    }
+
     # gtkroot <- "/usr/lib/x86_64-linux-gnu/gtk-2.0"
-    system("sudo apt-get update; sudo apt-get install -y libgtk2.0-dev")
+    system(paste("sudo apt-get update;", sudoInstall))
   }
   else
     warning("Automatic Gtk distribution is not (yet) supported for this platform")
@@ -311,7 +317,7 @@ install_rgtk2_and_deps <- function()
     ))
   }
 
-  # Get a copy of the GTK+ distribution for RGtk2's internal use (Windows)
+  # Make a copy of GTK+ for RGtk2's internal use (Windows)
   if (!.onWindows())
     return(invisible())
 

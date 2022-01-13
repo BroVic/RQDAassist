@@ -206,12 +206,11 @@ install <- function(verbose = TRUE)
       upgrade = "never",
       INSTALL_opts = "--no-multiarch"
     )
-    if (!verbose)
-      cat(.report()$success)
+    cat(.report()$success)
   },
   error = function(e) {
-    if (!verbose)
-      cat(.report()$failure)
+    cat(.report()$failure)
+    warning(conditionMessage(e))
   })
 }
 
@@ -245,7 +244,7 @@ install_rgtk2_and_deps <- function()
   tmpdir <- tempdir()
 
   # download GTK+
-  if (.Platform$OS.type == 'windows') {
+  if (.onWindows()) {
     gtkroot <- "C:/GTK"
     cat("Check if Gtk distribution is in place... ")
     if (!dir.exists(gtkroot)) {
@@ -276,6 +275,10 @@ install_rgtk2_and_deps <- function()
     cat("Set environment variable 'GTK_PATH'... ")
     Sys.setenv(GTK_PATH = gtkroot)
     cat(.report()$success)
+  }
+  else if (R.version$platform == "x86_64-pc-linux-gnu") {
+    # gtkroot <- "/usr/lib/x86_64-linux-gnu/gtk-2.0"
+    system("sudo apt-get update; sudo apt-get install -y libgtk2.0-dev")
   }
   else
     warning("Automatic Gtk distribution is not (yet) supported for this platform")
@@ -308,10 +311,14 @@ install_rgtk2_and_deps <- function()
     ))
   }
 
-  # Get a copy of the GTK+ distribution for RGtk2's internal use
-  gtk.int.path <- .localGtkPath()
-  if (dir.exists(gtk.int.path))
+  # Get a copy of the GTK+ distribution for RGtk2's internal use (Windows)
+  if (!.onWindows())
     return(invisible())
+
+  gtk.int.path <- .localGtkPath()
+  if (dir.exists(gtk.int.path))   # TODO: Perhaps check contents
+    return(invisible())
+
   withCallingHandlers(
     dir.create(gtk.int.path, recursive = TRUE),
     warning = function(w) {

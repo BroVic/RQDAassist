@@ -229,6 +229,7 @@ install <- function(verbose = TRUE)
 
 
 #' @importFrom devtools install
+#' @importFrom magrittr %>%
 #' @importFrom purrr map_lgl
 #' @importFrom purrr walk
 #' @importFrom utils download.file
@@ -282,14 +283,29 @@ install_rgtk2_and_deps <- function()
            "Please do this in an active R session, or at a Terminal using ",
            sQuote(sudoInstall))
     }
-
-    # gtkroot <- "/usr/lib/x86_64-linux-gnu/gtk-2.0"
     system(paste("sudo apt-get update;", sudoInstall))
+
+    # Update PATH if necessary
+    asPath <- paste(
+      c(
+        "/usr/lib/x86_64-linux-gnu/gtk-2.0",
+        "/etc/gtk-2.0",
+        "/usr/include/gtk-2.0"
+      ),
+      collapse = ":"
+    )
+    rgx <- asPath %>%
+      gsub("\\:", "\\\\:", .) %>%
+      gsub("\\.", "\\\\.", .)
+
+    op <- Sys.getenv("PATH")
+    if (!grepl(rgx, op))
+      Sys.setenv(PATH = paste(op, asPath, sep = ":"))
   }
   else
     warning("Automatic Gtk distribution is not (yet) supported for this platform")
 
-  # Download the RGtk2 tarball from CRAN and extract package
+  # Download the RGtk2 tarball from CRAN and extract package (all platforms)
   if (!.rgtk2IsInstalled()) {
     tryCatch({
       rtar <- .downloadArchive(

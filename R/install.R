@@ -19,6 +19,8 @@
 #' @export
 install <- function(verbose = TRUE)
 {
+  stopifnot(is.logical(verbose))
+
   .startupPrompt()
 
   ## Check for the availability of Rtools on Windows

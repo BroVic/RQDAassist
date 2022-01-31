@@ -9,7 +9,8 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.path = "man/figures/README-",
-  out.width = "100%"
+  out.width = "100%",
+  eval = FALSE
 )
 ```
 
@@ -28,7 +29,7 @@ The goal of this package is to help users overcome this challenge.
 ## Installation
 This package is currently under development and can be installed in an R session from [GitHub](https://github.com/) with:
 
-```{r, eval=FALSE}
+```{r install-main}
 # install.packages("devtools")
 devtools::install_github("BroVic/RQDAassist")
 ```
@@ -36,7 +37,7 @@ devtools::install_github("BroVic/RQDAassist")
 
 To install RQDA, after installing this package simply run this line of code:
 
-```{r install, eval=FALSE}
+```{r install-rqda}
 RQDAassist::install()
 ```
 

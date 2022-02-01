@@ -258,7 +258,7 @@ install_rgtk2_and_deps <- function()
         else if (.Platform$r_arch == "i386")
           "gtk+-bundle_2.22.1-20101227_win32.zip"
         else
-          stop
+          stop("Unsupported platform")
         gzp <-
           .downloadArchive(paste(gtk.arch.path, gtkarch, sep = '/'), tmpdir)
 

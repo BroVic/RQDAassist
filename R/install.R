@@ -252,10 +252,15 @@ install_rgtk2_and_deps <- function()
     if (!dir.exists(gtkroot)) {
       cat("no\nInstalling... ")
       tryCatch({
-        gzp <- .downloadArchive(
-          "http://ftp.gnome.org/pub/gnome/binaries/win64/gtk+/2.22/gtk+-bundle_2.22.1-20101229_win64.zip",
-          tmpdir
-        )
+        gtk.arch.path <- "http://ftp.gnome.org/pub/gnome/binaries/win64/gtk+/2.22"
+        gtkarch <- if (.Platform$r_arch == "x64")
+          "gtk+-bundle_2.22.1-20101229_win64.zip"
+        else if (.Platform$r_arch == "i386")
+          "gtk+-bundle_2.22.1-20101227_win32.zip"
+        else
+          stop
+        gzp <-
+          .downloadArchive(paste(gtk.arch.path, gtkarch, sep = '/'), tmpdir)
 
         # Extract to Root directory
         # TODO: Establish an option for re-downloadking GTK+ in the event of
@@ -264,9 +269,9 @@ install_rgtk2_and_deps <- function()
         if (!length(unzip(gzp, exdir = gtkroot)))
           stop("Extraction of 'GTK+' archive failed")
         cat(.report()$success)
+        file.remove(gzp)
       },
-      error = function(e) cat(.report()$failure),
-      finally = file.remove(gzp))
+      error = function(e) cat(.report()$failure))
     }
     else
       cat("yes\n")

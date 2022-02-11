@@ -36,12 +36,15 @@ read_transcript <- function(destdir, docxfiles, ...) {
 
   # TODO: Add '...' to control this function from without?
   docdt <- map_dfr(docxfiles, function(x) {
-    r <- try(readtext(x))
-    if (inherits(r, 'try-error'))
+    r <- try(readtext(x), silent = TRUE)
+    if (inherits(r, 'try-error')) {
+      warning(r)
       return()
+    }
     r
   })
-
+  if (!nrow(docdt))
+    stop("No files were read")
   docdt <- docdt %>%
     mutate(txt_id = str_replace(doc_id, '(.+)(\\.docx?$)', '\\1.txt')) %>%
     mutate(txt_id = .makeSafeNames(txt_id))

@@ -1,3 +1,4 @@
+globalVariables(".")
 #' Install RQDA Archive
 #'
 #' Install RQDA from CRAN archives and also while performing an installation of

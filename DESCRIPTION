@@ -1,8 +1,8 @@
 Package: RQDAassist
 Type: Package
 Title: Helpers for RQDA
-Version: 0.4.0.9009
-Date: 2022-02-01
+Version: 0.4.1
+Date: 2022-02-11
 Authors@R: person("Victor", "Ordu", email = "victorordu@outlook.com",
     role = c("aut", "cre"))
 Maintainer: Victor Ordu <victorordu@outlook.com>
@@ -13,6 +13,7 @@ Depends:
 Imports:
     devtools (>= 2.3.2),
     dplyr (>= 1.0.0),
+    magrittr (>= 2.0.2),
     purrr (>= 0.3.4),
     readtext (>= 0.80),
     stringr (>= 1.4.0),
@@ -25,4 +26,4 @@ Suggests:
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2

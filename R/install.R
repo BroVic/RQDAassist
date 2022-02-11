@@ -1,3 +1,4 @@
+globalVariables(".")
 #' Install RQDA Archive
 #'
 #' Install RQDA from CRAN archives and also while performing an installation of
@@ -19,6 +20,8 @@
 #' @export
 install <- function(verbose = TRUE)
 {
+  stopifnot(is.logical(verbose))
+
   .startupPrompt()
 
   ## Check for the availability of Rtools on Windows
@@ -45,7 +48,7 @@ install <- function(verbose = TRUE)
   if (!(pkgs %in% .packages(all.available = TRUE))) {
     tryCatch({
       install.packages(pkgs,
-                       repos = .rstudioMirror(),
+                       repos = 'https://cran.rstudio.com',
                        quiet = !verbose,
                        type = instTyp)
     }, error = function(e)
@@ -99,6 +102,10 @@ install <- function(verbose = TRUE)
 }
 
 
+
+
+
+
 ## Reports end result of a given operation
 .report <- function()
 {
@@ -127,20 +134,11 @@ install <- function(verbose = TRUE)
 
 
 
-## Returns the address to RStudio's CRAN mirror
-.rstudioMirror <- function() {
-  c('https://cran.rstudio.com')
-}
-
-
-
-
-
 
 
 .localGtkPath <- function() {
-  gtkdir <- file.path(.libPaths()[1], 'RGtk2', 'gtk')
-  file.path(gtkdir, .Platform$r_arch)
+  pkgpath <- system.file(package = "RGtk2")
+  file.path(pkgpath, 'gtk', .Platform$r_arch)
 }
 
 
@@ -177,7 +175,7 @@ install <- function(verbose = TRUE)
   ## If we're dealing with RGtk2, just stop the script
   ## and install Gtk+ interactively, if it is required.
   if (eval(pkgExists)) {
-    cat(sQuote(name), "is already installed\n")
+    cat(name, "is already installed\n")
     return()
   }
 
@@ -188,10 +186,14 @@ install <- function(verbose = TRUE)
   ## But first, if RGtk2 is not present, there's no
   ## point trying to install packages that depend on it.
   dependsOnRgtk2 <- (name == 'gWidgetsRGtk2' || name == 'RQDA')
-  rgtk2NotReady <-
+
+  rgtk2NotReady <- if (.onWindows())
     !(.rgtk2IsInstalled() && dir.exists(.localGtkPath()))
+  else
+    isFALSE(.rgtk2IsInstalled())
+
   if (dependsOnRgtk2 && rgtk2NotReady) {
-    warning(sQuote(name), " was not installed because RGtk2 is not ready")
+    warning(name, " was not installed because RGtk2 is not ready")
     return()
   }
 
@@ -206,12 +208,11 @@ install <- function(verbose = TRUE)
       upgrade = "never",
       INSTALL_opts = "--no-multiarch"
     )
-    if (!verbose)
-      cat(.report()$success)
+    cat(.report()$success)
   },
   error = function(e) {
-    if (!verbose)
-      cat(.report()$failure)
+    cat(.report()$failure)
+    warning(conditionMessage(e))
   })
 }
 
@@ -231,6 +232,7 @@ install <- function(verbose = TRUE)
 
 
 #' @importFrom devtools install
+#' @importFrom magrittr %>%
 #' @importFrom purrr map_lgl
 #' @importFrom purrr walk
 #' @importFrom utils download.file
@@ -245,16 +247,21 @@ install_rgtk2_and_deps <- function()
   tmpdir <- tempdir()
 
   # download GTK+
-  if (.Platform$OS.type == 'windows') {
+  if (.onWindows()) {
     gtkroot <- "C:/GTK"
     cat("Check if Gtk distribution is in place... ")
     if (!dir.exists(gtkroot)) {
       cat("no\nInstalling... ")
       tryCatch({
-        gzp <- .downloadArchive(
-          "http://ftp.gnome.org/pub/gnome/binaries/win64/gtk+/2.22/gtk+-bundle_2.22.1-20101229_win64.zip",
-          tmpdir
-        )
+        gtk.arch.path <- "http://ftp.gnome.org/pub/gnome/binaries/win64/gtk+/2.22"
+        gtkarch <- if (.Platform$r_arch == "x64")
+          "gtk+-bundle_2.22.1-20101229_win64.zip"
+        else if (.Platform$r_arch == "i386")
+          "gtk+-bundle_2.22.1-20101227_win32.zip"
+        else
+          stop("Unsupported platform")
+        gzp <-
+          .downloadArchive(paste(gtk.arch.path, gtkarch, sep = '/'), tmpdir)
 
         # Extract to Root directory
         # TODO: Establish an option for re-downloadking GTK+ in the event of
@@ -263,9 +270,9 @@ install_rgtk2_and_deps <- function()
         if (!length(unzip(gzp, exdir = gtkroot)))
           stop("Extraction of 'GTK+' archive failed")
         cat(.report()$success)
+        file.remove(gzp)
       },
-      error = function(e) cat(.report()$failure),
-      finally = file.remove(gzp))
+      error = function(e) cat(.report()$failure))
     }
     else
       cat("yes\n")
@@ -277,10 +284,36 @@ install_rgtk2_and_deps <- function()
     Sys.setenv(GTK_PATH = gtkroot)
     cat(.report()$success)
   }
+  else if (R.version$platform == "x86_64-pc-linux-gnu") {
+    sudoInstall <- "sudo apt-get install -y libgtk2.0-dev"
+    if (!interactive()) {
+      stop("The system dependencies cannot be installed non-interactively",
+           "Please do this in an active R session, or at a Terminal using ",
+           sQuote(sudoInstall))
+    }
+    system(paste("sudo apt-get update;", sudoInstall))
+
+    # Update PATH if necessary
+    asPath <- paste(
+      c(
+        "/usr/lib/x86_64-linux-gnu/gtk-2.0",
+        "/etc/gtk-2.0",
+        "/usr/include/gtk-2.0"
+      ),
+      collapse = ":"
+    )
+    rgx <- asPath %>%
+      gsub("\\:", "\\\\:", .) %>%
+      gsub("\\.", "\\\\.", .)
+
+    op <- Sys.getenv("PATH")
+    if (!grepl(rgx, op))
+      Sys.setenv(PATH = paste(op, asPath, sep = ":"))
+  }
   else
     warning("Automatic Gtk distribution is not (yet) supported for this platform")
 
-  # Download the RGtk2 tarball from CRAN and extract package
+  # Download the RGtk2 tarball from CRAN and extract package (all platforms)
   if (!.rgtk2IsInstalled()) {
     tryCatch({
       rtar <- .downloadArchive(
@@ -308,10 +341,14 @@ install_rgtk2_and_deps <- function()
     ))
   }
 
-  # Get a copy of the GTK+ distribution for RGtk2's internal use
-  gtk.int.path <- .localGtkPath()
-  if (dir.exists(gtk.int.path))
+  # Make a copy of GTK+ for RGtk2's internal use (Windows)
+  if (!.onWindows())
     return(invisible())
+
+  gtk.int.path <- .localGtkPath()
+  if (dir.exists(gtk.int.path))   # TODO: Perhaps check contents
+    return(invisible())
+
   withCallingHandlers(
     dir.create(gtk.int.path, recursive = TRUE),
     warning = function(w) {

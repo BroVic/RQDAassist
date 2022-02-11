@@ -5,8 +5,6 @@
 
 <!-- badges: start -->
 
-[![Lifecycle:
-experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
 [![R-CMD-check](https://github.com/BroVic/RQDAassist/workflows/R-CMD-check/badge.svg)](https://github.com/BroVic/RQDAassist/actions)
 <!-- badges: end -->
 
@@ -23,11 +21,6 @@ is currently not available.
 The goal of this package is to help users overcome this challenge.
 
 ## Installation
-
-<!-- You can install the released version of RQDAassist from [CRAN](https://CRAN.R-project.org) with: -->
-<!-- ``` r -->
-<!-- install.packages("RQDAassist") -->
-<!-- ``` -->
 
 This package is currently under development and can be installed in an R
 session from [GitHub](https://github.com/) with:
@@ -50,6 +43,12 @@ This will start the process of fetching the packages that RQDA needs to
 be installed and work properly. If the package **RGtk2** needs to be
 installed, **its** dependencies will first be downloaded and the package
 will be compiled from source. This process takes a while, so be patient!
+Note that when the installation get to this point
+
+    * byte-compile and prepare package for lazy loading
+
+it may look as if the process is frozen. **Do not interrupt the program
+at this point!**
 
 ## System Requirements
 

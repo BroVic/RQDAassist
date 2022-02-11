@@ -4,13 +4,15 @@
 \alias{read_transcript}
 \title{Create Text Files from Word}
 \usage{
-read_transcript(destdir, docxfiles)
+read_transcript(destdir, docxfiles, ...)
 }
 \arguments{
 \item{destdir}{Destination path. Where the files will be saved.}
 
 \item{docxfiles}{Character vector containing the filepath(s) of
 the Word documents to be converted.}
+
+\item{...}{Arguments passed to \code{\link[readtext]{readtext}}.}
 }
 \value{
 A character vector containing the paths of the generated text files.

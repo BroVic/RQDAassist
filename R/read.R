@@ -7,6 +7,7 @@ globalVariables(c("doc_id", "txt_id"))
 #' @param destdir Destination path. Where the files will be saved.
 #' @param docxfiles Character vector containing the filepath(s) of
 #' the Word documents to be converted.
+#' @param ... Arguments passed to \code{\link[readtext]{readtext}}.
 #'
 #' @details When \code{destdir} is unchanged, the function uses the current
 #' working directory as the location for saving any files converted from
@@ -15,12 +16,14 @@ globalVariables(c("doc_id", "txt_id"))
 #' @import stringr
 #' @importFrom dplyr mutate
 #' @importFrom readtext readtext
+#' @importFrom purrr map_dfr
+#' @importFrom purrr map2_chr
 #' @importFrom purrr walk2
 #'
 #' @return A character vector containing the paths of the generated text files.
 #'
 #' @export
-read_transcript <- function(destdir, docxfiles) {
+read_transcript <- function(destdir, docxfiles, ...) {
   if (is.null(destdir) || missing(destdir))
     destdir <- getwd()
 
@@ -32,8 +35,16 @@ read_transcript <- function(destdir, docxfiles) {
   })
 
   # TODO: Add '...' to control this function from without?
-  docdt <- readtext::readtext(docxfiles)
-
+  docdt <- map_dfr(docxfiles, function(x) {
+    r <- try(readtext(x), silent = TRUE)
+    if (inherits(r, 'try-error')) {
+      warning(r)
+      return()
+    }
+    r
+  })
+  if (!nrow(docdt))
+    stop("No files were read")
   docdt <- docdt %>%
     mutate(txt_id = str_replace(doc_id, '(.+)(\\.docx?$)', '\\1.txt')) %>%
     mutate(txt_id = .makeSafeNames(txt_id))
@@ -48,7 +59,7 @@ read_transcript <- function(destdir, docxfiles) {
   }
 
   docdt$text %>%
-    purrr::map2_chr(docdt$txt_id, .createFileAndReturnPath) %>%
+    map2_chr(docdt$txt_id, .createFileAndReturnPath) %>%
     invisible
 }
 

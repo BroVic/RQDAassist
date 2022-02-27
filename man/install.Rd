@@ -5,11 +5,13 @@
 \alias{install_rgtk2_and_deps}
 \title{Install RQDA Archive}
 \usage{
-install(verbose = TRUE)
+install(type = c("binary", "source"), verbose = TRUE)
 
-install_rgtk2_and_deps()
+install_rgtk2_and_deps(type = c("binary", "source"), verbose)
 }
 \arguments{
+\item{type}{A string, one of \code{binary} or \code{source}.}
+
 \item{verbose}{logical.}
 }
 \description{
@@ -23,4 +25,9 @@ all the packages required by RQDA, before actually installing it.
 \code{install_rgtk2_and_deps()} installs RGtk2. Before doing so, it fetches
 the Gtk+ distribution, making it available for RGtk2 compilation and
 subsequent usage as a package.
+}
+\note{
+The binary option will download the package from MRAN. The packages
+involved are RGtk2 and cairoDevice. All other packages, including RQDA, are
+downloaded as source packages by default.
 }

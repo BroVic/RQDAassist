@@ -25,7 +25,8 @@ globalVariables(".")
 #' @export
 install <- function(type = c("binary", "source"), verbose = TRUE)
 {
-  type <- .validateArgs(type, verbose)
+  type <- match.arg(type)
+  .crosscheckArgs(type, verbose)
 
   .startupPrompt()
 
@@ -69,13 +70,15 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
     )
   if (type == "source")
     cran.arch <- c(cairoDevice = "2.28.2", cran.arch)
-  else
-    install.packages(
-      .mranUrls("cairoDevice"),
-      repos = NULL,
-      verbose = verbose,
-      quiet = !verbose
-    )
+  else {
+    if (!.pkgExists("cairoDevice"))
+      install.packages(
+        .mranUrls("cairoDevice"),
+        repos = NULL,
+        verbose = verbose,
+        quiet = !verbose
+      )
+  }
 
   iwalk(cran.arch, .installEachPackageByVersion, verbose = verbose)
 }
@@ -195,12 +198,8 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
     is.logical(verbose)
   })
 
-  pkgExists <- quote(name %in% .packages(all.available = TRUE))
-
-  ## Avoid repeat installations via an early return
-  ## If we're dealing with RGtk2, just stop the script
-  ## and install Gtk+ interactively, if it is required.
-  if (eval(pkgExists)) {
+  ## Avoid repeat installations via an early return.
+  if (.pkgExists(name)) {
     cat(name, "is already installed\n")
     return()
   }
@@ -214,9 +213,9 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
   dependsOnRgtk2 <- (name == 'gWidgetsRGtk2' || name == 'RQDA')
 
   rgtk2NotReady <- if (.onWindows())
-    !(.rgtk2IsInstalled() && dir.exists(.localGtkPath()))
+    !(.pkgExists("RGtk2") && dir.exists(.localGtkPath()))
   else
-    isFALSE(.rgtk2IsInstalled())
+    isFALSE(.pkgExists("RGtk2"))
 
   if (dependsOnRgtk2 && rgtk2NotReady) {
     warning(name, " was not installed because RGtk2 is not ready")
@@ -247,14 +246,6 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
 
 
-.rgtk2IsInstalled <- function()
-{
-  "RGtk2" %in% .packages(all.available = TRUE)
-}
-
-
-
-
 
 
 #' @importFrom devtools install
@@ -268,24 +259,33 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 #' @rdname install
 #'
 #' @export
-install_rgtk2_and_deps <- function(type, verbose)
+install_rgtk2_and_deps <- function(type = c("binary", "source"), verbose)
 {
-  type <- .validateArgs(type, verbose)
+  type <- match.arg(type)
+  .crosscheckArgs(type, verbose)
 
   tmpdir <- tempdir()
 
   if (.onWindows()) {
     if (type == "binary") {
-      install.packages(
-        .mranUrls("RGtk2"),
-        repos = NULL,
-        verbose = verbose,
-        quiet = !verbose
-      )
+      if (.pkgExists("RGtk2")) {
+        install.packages(
+          .mranUrls("RGtk2"),
+          repos = NULL,
+          verbose = verbose,
+          quiet = !verbose
+        )
+        warning(
+          "RGtk2 has been installed but still needs Gtk+ to run correctly.",
+          "Run 'library(RGtk2)' and follow the prompt to install Gtk+.",
+          "Then, run 'RQDAassist::install' again to complete the installation.",
+          call. = FALSE
+        )
+      }
       return(invisible())
     }
 
-    # download GTK+
+    ## The rest of the function is for handling source installs
     gtkroot <- "C:/GTK"
     cat("Check for Gtk distribution... ")
     if (dir.exists(gtkroot))
@@ -352,7 +352,7 @@ install_rgtk2_and_deps <- function(type, verbose)
     warning("Automatic Gtk distribution is not (yet) supported for this platform")
 
   # Download the RGtk2 tarball from CRAN and extract package (all platforms)
-  if (!.rgtk2IsInstalled()) {
+  if (!.pkgExists("RGtk2")) {
     tryCatch({
       rtar <- .downloadArchive(
         "https://cran.r-project.org/src/contrib/Archive/RGtk2/RGtk2_2.20.36.3.tar.gz",
@@ -418,13 +418,18 @@ install_rgtk2_and_deps <- function(type, verbose)
 
 # Checks the two arguments passed onto the installation functions.
 # If the checks are passed, returns the value of 'type' (does partial matching)
-.validateArgs <- function(type, verbose)
+.crosscheckArgs <- function(type, verbose)
 {
-  stopifnot(is.logical(verbose))
-  type <- match.arg(type)
+
+  if (!is.logical(verbose)) {
+    stop("'verbose' must be logical vector")
+    if (length(verbose) > 1) {
+      verbose <- verbose[1]
+      warning("First element of verbose was taken and the rest ignored")
+    }
+  }
   if (!interactive() && type == "binary")
     stop("The binary version can only be installed in interactive mode")
-  type
 }
 
 
@@ -446,4 +451,15 @@ install_rgtk2_and_deps <- function(type, verbose)
   if(download.file(url, archpath, method = dwn.meth))
     stop("Could not download ", archname)
   archpath
+}
+
+
+
+
+
+
+.pkgExists <- function(pkg)
+{
+  stopifnot(is.character(pkg))
+  all(pkg %in% .packages(all.available = TRUE))
 }

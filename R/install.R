@@ -222,8 +222,8 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
     return()
   }
 
-  NL <- if (verbose) "\n" else ""
-  cat(sprintf("Installing '%s' ... %s", name, NL))
+  newLine <- if (verbose) "\n" else ""
+  cat(sprintf("Installing '%s' ... %s", name, newLine))
   tryCatch({
     devtools::install_version(
       name,
@@ -268,7 +268,7 @@ install_rgtk2_and_deps <- function(type = c("binary", "source"), verbose)
 
   if (.onWindows()) {
     if (type == "binary") {
-      if (.pkgExists("RGtk2")) {
+      if (!.pkgExists("RGtk2")) {
         install.packages(
           .mranUrls("RGtk2"),
           repos = NULL,

@@ -11,7 +11,7 @@ globalVariables(c("cid", "codecat"))
 #' @details The default query selects the following columns from the RQDA
 #' file: \code{cid}  from the \code{treecode} table and \code{name} from
 #' the \code{codecat} table. (For details on the database refer to
-#' \code{\link[RQDA]{RQDATables}})
+#' \code{RQDA::RQDATables})
 #'
 #' @importFrom dplyr `%>%`
 #' @importFrom dplyr count

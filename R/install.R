@@ -15,12 +15,17 @@ globalVariables(".")
 #' @importFrom purrr iwalk
 #' @importFrom utils install.packages
 #'
+#' @param type A string, one of \code{binary} or \code{source}.
 #' @param verbose logical.
 #'
+#' @note The binary option will download the package from MRAN. The packages
+#' involved are RGtk2 and cairoDevice. All other packages, including RQDA, are
+#' downloaded as source packages by default.
+#'
 #' @export
-install <- function(verbose = TRUE)
+install <- function(type = c("binary", "source"), verbose = TRUE)
 {
-  stopifnot(is.logical(verbose))
+  type <- .validateArgs(type, verbose)
 
   .startupPrompt()
 
@@ -42,40 +47,43 @@ install <- function(verbose = TRUE)
   ## What makes these ones special is that they are
   ## current package versions from CRAN and they are
   ## downloaded as binaries.
-  pkgs <- c("igraph")   # old code had more than 1 package!
-  # notInst <- pkgs[!pkgs %in% .packages(all.available = TRUE)]
-  instTyp <- if (.onWindows()) "binary" else "source"
-  if (!(pkgs %in% .packages(all.available = TRUE))) {
-    tryCatch({
-      install.packages(pkgs,
-                       repos = 'https://cran.rstudio.com',
-                       quiet = !verbose,
-                       type = instTyp)
-    }, error = function(e)
-      stop(conditionMessage(e), call. = FALSE)
-    )
+  pkg <- "igraph"
+  instTyp <- if (.onWindows())
+    "binary"
+  else
+    "source"
+  if (!(pkg %in% .packages(all.available = TRUE))) {
+    install.packages(pkg,
+                     repos = 'https://cran.rstudio.com',
+                     quiet = !verbose,
+                     type = instTyp)
   }
 
-  install_rgtk2_and_deps()
+  install_rgtk2_and_deps(type, verbose)
 
-  iwalk(
-    c(  # These are archived packages and their latest versions
-      cairoDevice = "2.28.2",
+  # These are archived packages and their latest versions
+  cran.arch <- c(
       gWidgets = '0.0-54.2',
       gWidgetsRGtk2 = '0.0-86',
       RQDA = '0.3-1'
-    ),
-    .installEachPackageByVersion,
-    verbose = verbose
-  )
+    )
+  if (type == "source")
+    cran.arch <- c(cairoDevice = "2.28.2", cran.arch)
+  else
+    install.packages(
+      .mranUrls("cairoDevice"),
+      repos = NULL,
+      verbose = verbose,
+      quiet = !verbose
+    )
+
+  iwalk(cran.arch, .installEachPackageByVersion, verbose = verbose)
 }
 
 
 
 
 
-
-# Internal functions ----
 
 # Prompts the user - only once after package is loaded (see zzz.R)
 .startupPrompt <- function()
@@ -130,6 +138,24 @@ install <- function(verbose = TRUE)
   c("https://cran.r-project.org")
 }
 
+
+
+
+
+
+.mranUrls <- function(pkg)
+{
+  pkg <- match.arg(pkg, c("RGtk2", "cairoDevice"))
+  obj <- list(
+    path = "https://cran.microsoft.com/snapshot/2021-12-15/bin/windows/contrib/4.1",
+    package = c(
+      rgtk2 = "RGtk2_2.20.36.2.zip",
+      cairoDevice = "cairoDevice_2.28.2.1.zip"
+    )
+  )
+  choice <- grep(pkg, obj$package, value = TRUE)
+  paste(obj$path, choice, sep = '/')
+}
 
 
 
@@ -242,16 +268,30 @@ install <- function(verbose = TRUE)
 #' @rdname install
 #'
 #' @export
-install_rgtk2_and_deps <- function()
+install_rgtk2_and_deps <- function(type, verbose)
 {
+  type <- .validateArgs(type, verbose)
+
   tmpdir <- tempdir()
 
-  # download GTK+
   if (.onWindows()) {
+    if (type == "binary") {
+      install.packages(
+        .mranUrls("RGtk2"),
+        repos = NULL,
+        verbose = verbose,
+        quiet = !verbose
+      )
+      return(invisible())
+    }
+
+    # download GTK+
     gtkroot <- "C:/GTK"
-    cat("Check if Gtk distribution is in place... ")
-    if (!dir.exists(gtkroot)) {
-      cat("no\nInstalling... ")
+    cat("Check for Gtk distribution... ")
+    if (dir.exists(gtkroot))
+      cat("present\n")
+    else {
+      cat("absent\nInstalling... ")
       tryCatch({
         gtk.arch.path <- "http://ftp.gnome.org/pub/gnome/binaries/win64/gtk+/2.22"
         gtkarch <- if (.Platform$r_arch == "x64")
@@ -274,8 +314,6 @@ install_rgtk2_and_deps <- function()
       },
       error = function(e) cat(.report()$failure))
     }
-    else
-      cat("yes\n")
 
     # set environment variable for GTK_PATH (Windows only)
     # This enables the compiler to find include search path
@@ -323,22 +361,23 @@ install_rgtk2_and_deps <- function()
       cat("Extract RGtk2 archive... ")
       if (!untar(rtar, exdir = tmpdir, verbose = TRUE))
         cat(.report()$success)
+      file.remove(rtar)
     },
-    error = function(e) cat(.report()$failure),
-    finally = file.remove(rtar))
+    error = function(e) cat(.report()$failure))
 
     # install RGtk2 - The package will be built from source.
     # We use the option --no-test-load to prevent attempts
     # at loading the package, which could fail due to the
     # absence of Gtk+ binaries within the package at the
     # time of installation.
-    try(devtools::install(
+    devtools::install(
       pkg = file.path(tmpdir, "RGtk2"),
       reload = FALSE,
       build = TRUE,
       args = c("--no-multiarch", "--no-test-load"),
-      upgrade = 'never'
-    ))
+      upgrade = 'never',
+      quiet = !verbose
+    )
   }
 
   # Make a copy of GTK+ for RGtk2's internal use (Windows)
@@ -373,6 +412,21 @@ install_rgtk2_and_deps <- function()
     warning("Gtk+ was not properly situated in RGtk2")
   })
 }
+
+
+
+
+# Checks the two arguments passed onto the installation functions.
+# If the checks are passed, returns the value of 'type' (does partial matching)
+.validateArgs <- function(type, verbose)
+{
+  stopifnot(is.logical(verbose))
+  type <- match.arg(type)
+  if (!interactive() && type == "binary")
+    stop("The binary version can only be installed in interactive mode")
+  type
+}
+
 
 
 

@@ -62,10 +62,12 @@ of the installation.
 
 #### Source install
 
-If the package **RGtk2** needs to be installed, its dependencies
-i.e. the GTk distribution will first be downloaded and then the package
-will be compiled from source. The user should note that this may take a
-while; when the installation gets to this point for RGtk2
+The source installation should be the choice if the `install` function
+is to be used non-interactively. If the package **RGtk2** needs to be
+installed, its dependencies i.e. the GTK distribution will first be
+downloaded, its static libraries and header files placed on `PATH` and
+then RGtk2 will be compiled from source. The user should note that this
+will take a while; when the installation gets to this point for RGtk2,
 
     * byte-compile and prepare package for lazy loading
 
@@ -74,14 +76,16 @@ interrupt the program at this point!**
 
 ### Additional functionality
 
-Although this package may be most useful for just installing RQDA, there
-are other functions that exist to make life easier when working with
-RQDA projects. For more details, kindly consult the documentation via
+Although this package is useful for just installing RQDA, there are
+other functions that exist to make life easier when working with RQDA
+projects. For more details, kindly consult the documentation via
 `help(package = "RQDAassist")` for an overview of the available
 functions.
 
 ## System Requirements
 
+To build source packages in R,
+[Rtools](https://cran.r-project.org/bin/windows/Rtools/) is required.
 Ultimately, *RQDAassist* needs to work on the major platforms
 i.e. Windows, Linux and Mac, but for now has only been tested on Windows
 10 x64. Users of other OSes are welcome to try it out and let us know

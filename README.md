@@ -11,7 +11,7 @@
 
 [RQDA](http://rqda.r-forge.r-project.org/), a powerful computer-aided
 qualitative data analysis (CAQDAS) package, can be slightly challenging
-to install. This is particularly so for researchers who are particularly
+to install. This is especially so for researchers who are not particularly
 skilled at R programming.
 
 Since the advent of R-4.0, RQDA was archived due to various changes in

@@ -28,7 +28,7 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
   type <- match.arg(type)
   .crosscheckArgs(type, verbose)
 
-  .startupPrompt()
+  .startupPrompt(type)
 
   ## Check for the availability of Rtools on Windows
   ## and if absent, tell the user where to get it.
@@ -64,21 +64,11 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
   # These are archived packages and their latest versions
   cran.arch <- c(
+      cairoDevice = "2.28.2.1",
       gWidgets = '0.0-54.2',
       gWidgetsRGtk2 = '0.0-86',
       RQDA = '0.3-1'
     )
-  if (type == "source")
-    cran.arch <- c(cairoDevice = "2.28.2", cran.arch)
-  else {
-    if (!.pkgExists("cairoDevice"))
-      install.packages(
-        .mranUrls("cairoDevice"),
-        repos = NULL,
-        verbose = verbose,
-        quiet = !verbose
-      )
-  }
 
   iwalk(cran.arch, .installEachPackageByVersion, verbose = verbose)
 }
@@ -89,14 +79,16 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
 
 # Prompts the user - only once after package is loaded (see zzz.R)
-.startupPrompt <- function()
+.startupPrompt <- function(inst.type)
 {
   if (interactive()) {
+    if (inst.type == "binary")
+      return(invisible())
     if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
       Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
       cont <- "Continue (Y/N)? "
 
-      prompt <- paste("This installation may take some time.", cont)
+      prompt <- paste("Source installation will take some time.", cont)
       ans <- tolower(readline(prompt))
       repeat {
         pos <- regexpr("^(y(es)?|no?)$", ans)
@@ -141,24 +133,6 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
   c("https://cran.r-project.org")
 }
 
-
-
-
-
-
-.mranUrls <- function(pkg)
-{
-  pkg <- match.arg(pkg, c("RGtk2", "cairoDevice"))
-  obj <- list(
-    path = "https://cran.microsoft.com/snapshot/2021-12-15/bin/windows/contrib/4.1",
-    package = c(
-      rgtk2 = "RGtk2_2.20.36.2.zip",
-      cairoDevice = "cairoDevice_2.28.2.1.zip"
-    )
-  )
-  choice <- grep(pkg, obj$package, value = TRUE)
-  paste(obj$path, choice, sep = '/')
-}
 
 
 
@@ -266,11 +240,20 @@ install_rgtk2_and_deps <- function(type = c("binary", "source"), verbose)
 
   tmpdir <- tempdir()
 
+  if (R.version >= 4.2 && type == "source") {
+    message(
+      paste(
+        "Source instalation is not yet supported for this version of R.",
+        "Reverting to binary installation"
+      ))
+    type <- "binary"
+  }
+
   if (.onWindows()) {
     if (type == "binary") {
       if (!.pkgExists("RGtk2")) {
         install.packages(
-          .mranUrls("RGtk2"),
+          "https://access.togaware.com/RGtk2_2.20.36.2.zip",
           repos = NULL,
           verbose = verbose,
           quiet = !verbose

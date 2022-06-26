@@ -7,7 +7,7 @@
 \usage{
 install(type = c("binary", "source"), verbose = TRUE)
 
-install_rgtk2_and_deps(type = c("binary", "source"), verbose)
+install_rgtk2_and_deps(type = c("binary", "source"), verbose = TRUE)
 }
 \arguments{
 \item{type}{A string, one of \code{binary} or \code{source}.}

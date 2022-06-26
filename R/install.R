@@ -32,16 +32,19 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
   ## Check for the availability of Rtools on Windows
   ## and if absent, tell the user where to get it.
-  if (!devtools::has_devel(quiet = TRUE)) {
-    if (.Platform$OS.type == 'windows') {
-      toolsUrl <-
-        file.path(.cranIndex(), "bin", .Platform$OS.type, "Rtools/history.html")
-      stop(sprintf(
+  if (.onWindows() && !devtools::has_devel(quiet = TRUE)) {
+    toolsUrl <-
+      file.path(.cranIndex(),
+                "bin",
+                .Platform$OS.type,
+                "Rtools/history.html")
+    stop(
+      sprintf(
         "Your system is not ready to build packages. Please visit %s to install Rtools.",
         sQuote(toolsUrl)
       ),
-      call. = FALSE)
-    }
+      call. = FALSE
+    )
   }
 
   ## Install initial packages required by RQDA.
@@ -62,7 +65,7 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
   install_rgtk2_and_deps(type, verbose)
 
-  # These are archived packages and their latest versions
+  # These are last known compatible versions of packages
   cran.arch <- c(
       cairoDevice = "2.28.2.1",
       gWidgets = '0.0-54.2',
@@ -233,7 +236,8 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 #' @rdname install
 #'
 #' @export
-install_rgtk2_and_deps <- function(type = c("binary", "source"), verbose)
+install_rgtk2_and_deps <-
+  function(type = c("binary", "source"), verbose = TRUE)
 {
   type <- match.arg(type)
   .crosscheckArgs(type, verbose)
@@ -300,7 +304,7 @@ install_rgtk2_and_deps <- function(type = c("binary", "source"), verbose)
 
     # set environment variable for GTK_PATH (Windows only)
     # This enables the compiler to find include search path
-    # per instructions in 'RGtk/INSTALL'
+    # per instructions in 'RGtk2/INSTALL'
     cat("Set environment variable 'GTK_PATH'... ")
     Sys.setenv(GTK_PATH = gtkroot)
     cat(.report()$success)
@@ -403,7 +407,6 @@ install_rgtk2_and_deps <- function(type = c("binary", "source"), verbose)
 # If the checks are passed, returns the value of 'type' (does partial matching)
 .crosscheckArgs <- function(type, verbose)
 {
-
   if (!is.logical(verbose)) {
     stop("'verbose' must be logical vector")
     if (length(verbose) > 1) {

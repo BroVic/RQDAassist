@@ -177,7 +177,7 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
   ## Avoid repeat installations via an early return.
   if (.pkgExists(name)) {
-    cat(name, "is already installed\n")
+    cat("Package already installed:", name, "\n")
     return()
   }
 

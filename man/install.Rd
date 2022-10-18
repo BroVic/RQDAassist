@@ -27,7 +27,7 @@ the Gtk+ distribution, making it available for RGtk2 compilation and
 subsequent usage as a package.
 }
 \note{
-The binary option will download the package from MRAN. The packages
-involved are RGtk2 and cairoDevice. All other packages, including RQDA, are
-downloaded as source packages by default.
+The binary option will download the package from a non-CRAN repository.
+The packages involved are RGtk2 and cairoDevice. All other packages,
+including RQDA, are downloaded as source packages by default.
 }

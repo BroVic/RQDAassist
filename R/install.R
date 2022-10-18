@@ -19,9 +19,9 @@ globalVariables(".")
 #' @param type A string, one of \code{binary} or \code{source}.
 #' @param verbose logical.
 #'
-#' @note The binary option will download the package from MRAN. The packages
-#' involved are RGtk2 and cairoDevice. All other packages, including RQDA, are
-#' downloaded as source packages by default.
+#' @note The binary option will download the package from a non-CRAN repository.
+#' The packages involved are RGtk2 and cairoDevice. All other packages,
+#' including RQDA, are downloaded as source packages by default.
 #'
 #' @export
 install <- function(type = c("binary", "source"), verbose = TRUE)

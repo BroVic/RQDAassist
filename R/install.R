@@ -62,7 +62,9 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
   install_rgtk2_and_deps(type, verbose)
 
-  # These are last known compatible versions of packages
+  ## These are last known compatible versions of packages
+  ## and they are all source tarballs, and thus have to be
+  ## built.
   cran.arch <- c(
       cairoDevice = "2.28.2.1",
       gWidgets = '0.0-54.2',
@@ -79,35 +81,37 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
 
 # Prompts the user - only once after package is loaded (see zzz.R)
+#' @importFrom assertthat is.string
 .startupPrompt <- function(inst.type)
 {
-  if (interactive()) {
+  stopifnot(assertthat::is.string(inst.type))
 
-    if (inst.type == "binary")
-      return(invisible())
+  if (!interactive() || inst.type == "binary")
+    return(invisible())
 
-    if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
-      Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
-      cont <- "Continue (Y/N)? "
-      prompt <- paste("Source installation will take some time.", cont)
-      ans <- tolower(readline(prompt))
+  if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
+    readline_lowcase <- function() tolower(readline(prompt))
 
-      repeat {
-        pos <- regexpr("^(y(es)?|no?)$", ans)
+    Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
+    cont <- "Continue (Y/N)? "
+    prompt <- paste("Source installation will take some time.", cont)
+    ans <- readline_lowcase()
 
-        if (pos > 0)
-          break
+    repeat {
+      pos <- regexpr("^(y(es)?|no?)$", ans)
 
-        ans <- readline(paste("Invalid input", cont))
-      }
+      if (pos > 0)
+        break
 
-      ans <- substr(ans, pos - 1, pos)
-
-      if (tolower(ans) == 'n')
-        return(invisible())
+      prompt <- paste("Invalid input.", cont)
+      ans <- readline_lowcase()
     }
-  }
 
+    ans <- substr(ans, pos - 1, pos)
+
+    if (ans == 'n')
+      return(invisible())
+  }
 }
 
 
@@ -234,9 +238,10 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
 
 #' @importFrom devtools install
-#' @importFrom magrittr %>%
 #' @importFrom purrr map_lgl
 #' @importFrom purrr walk
+#' @importFrom stringr %>%
+#' @importFrom stringr str_replace_all
 #' @importFrom utils download.file
 #' @importFrom utils untar
 #' @importFrom utils unzip
@@ -336,8 +341,8 @@ install_rgtk2_and_deps <-
       collapse = ":"
     )
     rgx <- asPath %>%
-      gsub("\\:", "\\\\:", .) %>%
-      gsub("\\.", "\\\\.", .)
+      str_replace_all("\\:", "\\\\:") %>%
+      str_replace_all("\\.", "\\\\.")
 
     op <- Sys.getenv("PATH")
 

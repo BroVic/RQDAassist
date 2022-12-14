@@ -57,7 +57,7 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
     install.packages(pkg,
                      repos = 'https://cran.rstudio.com',
                      quiet = !verbose,
-                     type = type)
+                     type = "binary")
   }
 
   install_rgtk2_and_deps(type, verbose)
@@ -278,23 +278,26 @@ install_rgtk2_and_deps <-
     gtkroot <- "C:/GTK"
     cat("Check for Gtk distribution... ")
 
-    if (dir.exists(gtkroot))
+    if (dir.exists(gtkroot)) {
       cat("present\n")
+    }
     else {
       cat("absent\nInstalling... ")
 
       tryCatch({
-        gtkarch <- if (.Platform$r_arch == "x64")
-          "gtk+-bundle_2.22.1-20101229_win64.zip"
-        else if (.Platform$r_arch == "i386")
-          "gtk+-bundle_2.22.1-20101227_win32.zip"
-        else
-          stop("Unsupported platform")
+        if (.Platform$r_arch == "x64") {
+          gtkarch <- "gtk+-bundle_2.22.1-20101229_win64.zip"
+          arch <- "win64"
+        }
+        else {
+          gtkarch <- "gtk+-bundle_2.22.1-20101227_win32.zip"
+          arch <- "win32"
+        }
 
-        gtk.arch.path <-
-          "http://ftp.gnome.org/pub/gnome/binaries/win64/gtk+/2.22"
-        gzp <-
-          .downloadArchive(paste(gtk.arch.path, gtkarch, sep = '/'), tmpdir)
+        gtkarch.dir <-
+          sprintf("http://ftp.gnome.org/pub/gnome/binaries/%s/gtk+/2.22",
+                  arch)
+        gzp <- .downloadArchive(file.path(gtkarch.dir, gtkarch), tmpdir)
 
         # Extract to Root directory
         # TODO: Establish an option for re-downloading GTK+ in the event of
@@ -306,7 +309,8 @@ install_rgtk2_and_deps <-
         cat(.report()$success)
         file.remove(gzp)
       },
-      error = function(e) cat(.report()$failure))
+      error = function(e)
+        cat(.report()$failure))
     }
 
     # set environment variable for GTK_PATH (Windows only)

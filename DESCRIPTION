@@ -1,8 +1,8 @@
 Package: RQDAassist
 Type: Package
 Title: Helpers for RQDA
-Version: 0.5.3.9000
-Date: 2022-12-14
+Version: 0.5.3.9001
+Date: 2023-01-09
 Authors@R: person("Victor", "Ordu", email = "victorordu@outlook.com",
     role = c("aut", "cre"))
 Maintainer: Victor Ordu <victorordu@outlook.com>
@@ -21,9 +21,8 @@ Imports:
 Suggests: 
     RQDA (>= 0.3.1),
     lifecycle (>= 0.2.0),
-    testthat,
-    stringi
+    testthat
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3

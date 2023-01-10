@@ -105,11 +105,11 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
   }
 
   iwalk(
-    c(
-      RQDA = '0.3-1',
+    c(    # maintain this order, so that RQDA is attempted last
       cairoDevice = "2.28.2.1",
       gWidgets = '0.0-54.2',
-      gWidgetsRGtk2 = '0.0-86'
+      gWidgetsRGtk2 = '0.0-86',
+      RQDA = '0.3-1'
     ),
     installPackageByVersion
   )

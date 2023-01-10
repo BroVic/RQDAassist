@@ -1,11 +1,13 @@
+library(stringi)
+
 test_that("FileList is created", {
   dir <- "data"
   fname1 <- "lipsum2.txt"
   fname2 <- "lipsum3.txt"
   file1 <- file.path(dir, fname1)
   file2 <- file.path(dir, fname2)
-  cat(stringi::stri_rand_lipsum(2), file = file1, fill = TRUE)
-  cat(stringi::stri_rand_lipsum(3), file = file2, fill = TRUE)
+  cat(stri_rand_lipsum(2), file = file1, fill = TRUE)
+  cat(stri_rand_lipsum(3), file = file2, fill = TRUE)
   files <- c(file1, file2)
 
   out <- make_FileList(files)

@@ -94,4 +94,4 @@ what does not work so it can be improved upon.
 ## Contributions/Feedback
 
 If you run into problems, kindly post an issue and expect a quick
-response. Feature requests and ontributions are also welcome.
+response. Feature requests and contributions are also welcome.

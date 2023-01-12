@@ -84,7 +84,7 @@ functions.
 
 ## System Requirements
 
-To build source packages in R,
+To build source packages with R for Windows,
 [Rtools](https://cran.r-project.org/bin/windows/Rtools/) is required.
 Ultimately, *RQDAassist* needs to work on the major platforms
 i.e. Windows, Linux and Mac, but for now has only been tested on Windows
@@ -94,4 +94,4 @@ what does not work so it can be improved upon.
 ## Contributions/Feedback
 
 If you run into problems, kindly post an issue and expect a quick
-response. Feature requests and ontributions are also welcome.
+response. Feature requests and contributions are also welcome.

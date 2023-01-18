@@ -64,7 +64,7 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
                      type = "binary")
   }
 
-  install_rgtk2_and_deps(type, verbose)
+  try(install_rgtk2_and_deps(type, verbose))
 
   ## Controls how each package is installed. This function is applied
   ## below to a named vector of the source package versions.
@@ -76,7 +76,7 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
     }
 
     rgtk2NotReady <- if (.onWindows())
-      !(.pkgExists("RGtk2") && dir.exists(.localGtkPath()))
+      !(.pkgExists("RGtk2") && dir.exists(.pkgLocalGtkPath()))
     else
       isFALSE(.pkgExists("RGtk2"))
 
@@ -187,33 +187,29 @@ install_rgtk2_and_deps <-
 
         gtkarch.dir <-
           sprintf("https://download.gnome.org/binaries/%s/gtk+/2.22", arch)
+        gtk.path <- paste(gtkarch.dir, gtkarch, sep = "/")
+        gtkzip <- .downloadArchive(gtk.path, tmpdir)
 
+        # Extract to root directory
+        # TODO: Establish an option for re-downloading GTK+ in the event of
+        # installation failure caused by missing dependencies for compilation
+        #        unlink(gtkroot, recursive = TRUE, force = TRUE)
         tryCatch({
-          # Extract to root directory
-          # TODO: Establish an option for re-downloading GTK+ in the event of
-          # installation failure caused by missing dependencies for compilation
-          #        unlink(gtkroot, recursive = TRUE, force = TRUE)
-          cat("Installing... ")
-          gtk.path <- paste(gtkarch.dir, gtkarch, sep = "/")
-          gzp <- .downloadArchive(gtk.path, tmpdir)
+          cat("Installing GTK distribution to 'C:\' ... ")
 
-          if (!length(unzip(gzp, exdir = gtkroot)))
-            stop("Extraction of 'GTK+' archive failed")
-
-          cat(.report()$success)
-          file.remove(gzp)
-
-          # set environment variable for GTK_PATH (Windows only)
-          # This enables the compiler to find include search path
-          # per instructions in 'RGtk2/INSTALL'
-          cat("Set environment variable 'GTK_PATH'... ")
-          Sys.setenv(GTK_PATH = gtkroot)
+          if (!length(unzip(gtkzip, exdir = gtkroot)))
+            stop(.extractionFailMessage("GTK distribution"))
+          file.remove(gtkzip)
           cat(.report()$success)
         },
         error = function(e) {
           cat(.report()$failure)
-          warning(conditionMessage(e), call. = FALSE)
+          stop(conditionMessage(e), call. = FALSE)
         })
+
+        # Per instructions in 'RGtk2/INSTALL'
+        cat("Set environment variable 'GTK_PATH'\n")
+        Sys.setenv(GTK_PATH = gtkroot)
       }
     }
     else if (R.version$platform == "x86_64-pc-linux-gnu") {
@@ -251,27 +247,28 @@ install_rgtk2_and_deps <-
 
     # Download the RGtk2 tarball from CRAN and extract package (all platforms)
     if (!.pkgExists("RGtk2")) {
+      tryCatch({
+        cat("Download RGtk2 archive ... ")
+
+        rgtk2.cran <-
+          file.path(.cranIndex(),
+                    "src/contrib/Archive/RGtk2/RGtk2_2.20.36.3.tar.gz")
+
+        rtar <- .downloadArchive(rgtk2.cran, tmpdir)
+        cat(.report()$success)
+      },
+      error = function(e) {
+        cat(.report()$failure)
+        stop(conditionMessage(e), call. = FALSE)
+      })
 
       tryCatch({
-        cat("Download RGtk2 archive... ")
+        cat("Extract RGtk2 archive ... ")
 
-        rtar <-
-          .downloadArchive(
-            file.path(
-              .cranIndex(),
-              "src/contrib/Archive/RGtk2/RGtk2_2.20.36.3.tar.gz"
-            ),
-            tmpdir
-          )
-
-        cat(.report()$success)
-        cat("Extract RGtk2 archive... ")
-
-        if (!untar(rtar, exdir = tmpdir, verbose = TRUE))
-          cat(.report()$success)
+        if (untar(rtar, exdir = tmpdir, verbose = TRUE) != 0L)
+          stop(.extractionFailMessage("RGtk2"))
 
         file.remove(rtar)
-
 
         # RGtk2 will be built from source. We use the option --no-test-load to
         # prevent attempts at loading the package, which could fail due to the
@@ -288,14 +285,14 @@ install_rgtk2_and_deps <-
       },
       error = function(e) {
         cat(.report()$failure)
-        warning(conditionMessage(e), call. = FALSE)
+        stop(conditionMessage(e), call. = FALSE)
       })
     }
 
     if (!.onWindows())
       return(invisible())
 
-    gtk.int.path <- .localGtkPath()
+    gtk.int.path <- .pkgLocalGtkPath()
 
     if (dir.exists(gtk.int.path))   # TODO: Perhaps check contents
       return(invisible())
@@ -405,7 +402,7 @@ install_rgtk2_and_deps <-
 
 
 # Where Gtk+ is saved locally within the RGtk2 library
-.localGtkPath <- function() {
+.pkgLocalGtkPath <- function() {
   pkgpath <- system.file(package = "RGtk2")
   file.path(pkgpath, 'gtk', .Platform$r_arch)
 }
@@ -458,16 +455,16 @@ install_rgtk2_and_deps <-
     stop("Invalid URL scheme")
 
   archname <- basename(url)
-  archpath <- file.path(destdir, archname)
+  destpath <- file.path(destdir, archname)
   dwn.meth <- "auto"
 
   if (.onWindows() && capabilities(curl <- 'libcurl'))
     dwn.meth <- curl
 
-  if(download.file(url, archpath, method = dwn.meth))
+  if(download.file(url, destpath, method = dwn.meth) != 0L)
     stop("Could not download ", archname)
 
-  archpath
+  destpath
 }
 
 
@@ -479,4 +476,18 @@ install_rgtk2_and_deps <-
 {
   stopifnot(is.character(pkg))
   all(pkg %in% .packages(all.available = TRUE))
+}
+
+
+
+
+
+
+.extractionFailMessage <- function(str)
+{
+  stopifnot({
+    is.character(str)
+    length(str) == 1L
+  })
+  sprintf("Extraction of %s failed")
 }

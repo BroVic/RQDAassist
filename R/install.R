@@ -202,17 +202,19 @@ install_rgtk2_and_deps <-
 
           cat(.report()$success)
           file.remove(gzp)
-        },
-        error = function(e)
-          cat(.report()$failure))
-      }
 
-      # set environment variable for GTK_PATH (Windows only)
-      # This enables the compiler to find include search path
-      # per instructions in 'RGtk2/INSTALL'
-      cat("Set environment variable 'GTK_PATH'... ")
-      Sys.setenv(GTK_PATH = gtkroot)
-      cat(.report()$success)
+          # set environment variable for GTK_PATH (Windows only)
+          # This enables the compiler to find include search path
+          # per instructions in 'RGtk2/INSTALL'
+          cat("Set environment variable 'GTK_PATH'... ")
+          Sys.setenv(GTK_PATH = gtkroot)
+          cat(.report()$success)
+        },
+        error = function(e) {
+          cat(.report()$failure)
+          warning(conditionMessage(e), call. = FALSE)
+        })
+      }
     }
     else if (R.version$platform == "x86_64-pc-linux-gnu") {
       sudoInstall <- "sudo apt-get install -y libgtk2.0-dev"
@@ -251,7 +253,7 @@ install_rgtk2_and_deps <-
     if (!.pkgExists("RGtk2")) {
 
       tryCatch({
-        cat("Extract RGtk2 archive... ")
+        cat("Download RGtk2 archive... ")
 
         rtar <-
           .downloadArchive(
@@ -262,29 +264,34 @@ install_rgtk2_and_deps <-
             tmpdir
           )
 
+        cat(.report()$success)
+        cat("Extract RGtk2 archive... ")
+
         if (!untar(rtar, exdir = tmpdir, verbose = TRUE))
           cat(.report()$success)
 
         file.remove(rtar)
+
+
+        # RGtk2 will be built from source. We use the option --no-test-load to
+        # prevent attempts at loading the package, which could fail due to the
+        # absence of Gtk+ binaries within the package at the time of
+        # installation.
+        devtools::install(
+          pkg = file.path(tmpdir, "RGtk2"),
+          reload = FALSE,
+          build = TRUE,
+          args = c("--no-multiarch", "--no-test-load"),
+          upgrade = 'never',
+          quiet = !verbose
+        )
       },
       error = function(e) {
         cat(.report()$failure)
+        warning(conditionMessage(e), call. = FALSE)
       })
-
-      # RGtk2 will be built from source. We use the option --no-test-load to
-      # prevent attempts at loading the package, which could fail due to the
-      # absence of Gtk+ binaries within the package at the time of installation.
-      devtools::install(
-        pkg = file.path(tmpdir, "RGtk2"),
-        reload = FALSE,
-        build = TRUE,
-        args = c("--no-multiarch", "--no-test-load"),
-        upgrade = 'never',
-        quiet = !verbose
-      )
     }
 
-    # Make a copy of GTK+ for RGtk2's internal use (Windows)
     if (!.onWindows())
       return(invisible())
 
@@ -301,12 +308,13 @@ install_rgtk2_and_deps <-
       }
     )
 
-    cat("Copy Gtk+ distribution to RGtk2 package... ")
+    cat("Copy Gtk+ distribution to RGtk2 ... ")
 
     tryCatch({
-      successes <- purrr::map_lgl(
+      successes <- vapply(
         list.files(gtkroot, full.names = TRUE),
         file.copy,
+        logical(1),
         to = gtk.int.path,
         recursive = TRUE
       )
@@ -315,9 +323,11 @@ install_rgtk2_and_deps <-
         stop(call. = FALSE)
 
       cat(.report()$success)
-    }, error = function(e) {
+    },
+    error = function(e) {
       cat(.report()$failure)
-      warning("Gtk+ was not properly situated in RGtk2")
+      warning("Gtk+ was not properly situated in RGtk2", call. = FALSE)
+      warning(conditionMessage(e), call. = FALSE)
     })
   }
 

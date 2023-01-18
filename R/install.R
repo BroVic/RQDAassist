@@ -186,7 +186,7 @@ install_rgtk2_and_deps <-
         }
 
         gtkarch.dir <-
-          sprintf("http://ftp.gnome.org/pub/gnome/binaries/%s/gtk+/2.22", arch)
+          sprintf("https://download.gnome.org/binaries/%s/gtk+/2.22", arch)
 
         tryCatch({
           # Extract to root directory
@@ -194,7 +194,8 @@ install_rgtk2_and_deps <-
           # installation failure caused by missing dependencies for compilation
           #        unlink(gtkroot, recursive = TRUE, force = TRUE)
           cat("Installing... ")
-          gzp <- .downloadArchive(file.path(gtkarch.dir, gtkarch), tmpdir)
+          gtk.path <- paste(gtkarch.dir, gtkarch, sep = "/")
+          gzp <- .downloadArchive(gtk.path, tmpdir)
 
           if (!length(unzip(gzp, exdir = gtkroot)))
             stop("Extraction of 'GTK+' archive failed")

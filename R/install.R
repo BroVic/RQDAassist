@@ -34,45 +34,39 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
   .crosscheckArgs(type, verbose)
   .startupPrompt(type)
 
-  ## Check for the availability of Rtools on Windows
-  ## and if absent, tell the user where to get it.
-  if (.onWindows() && !devtools::has_devel(quiet = !verbose)) {
-    toolsUrl <-
-      file.path(.cranIndex(),
-                "bin",
-                .Platform$OS.type,
-                "Rtools/history.html")
-    stop(
-      sprintf(
-        paste("Your system is not ready to build packages.",
-              "Please visit %s to install Rtools."),
-        sQuote(toolsUrl)
+  if (.onWindows() && !devtools::has_devel(quiet = !verbose))
+    stop(sprintf(
+      paste(
+        "Your system is not ready to build packages.",
+        "Please visit %s to install Rtools."
       ),
-      call. = FALSE
-    )
-  }
+      sQuote(file.path(.cranIndex(), "bin/Rtools/history.html"))
+    ),
+    call. = FALSE)
 
-  ## Install initial packages required by RQDA. What makes these ones special
-  ## is that they are current package versions from CRAN and they are
-  ## downloaded as binaries.
-  pkg <- "igraph"
-
-  if (!(pkg %in% .packages(all.available = TRUE))) {
-    install.packages(pkg,
+  if (!.pkgExists("igraph"))
+    install.packages("igraph",
                      repos = 'https://cran.rstudio.com',
                      quiet = !verbose,
                      type = "binary")
-  }
 
   try(install_rgtk2_and_deps(type, verbose))
 
   ## Controls how each package is installed. This function is applied
   ## below to a named vector of the source package versions.
   installPackageByVersion <- function(ver, name) {
-    ## Avoid repeat installations.
     if (.pkgExists(name)) {
       cat("Package already installed:", name, "\n")
       return()
+    }
+
+    if (identical(name, "cairoDevice")) {
+      if (!dir.exists(gtkroot())) {
+      warning("'cairoDevice' was skipped due to absence of GTK distribution")
+      return()
+      }
+
+      .setGtkEnvar()
     }
 
     rgtk2NotReady <- if (.onWindows())
@@ -85,9 +79,7 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
       return()
     }
 
-    newLine <- if (verbose) "\n" else ""
-    cat(sprintf("Installing '%s' ... %s", name, newLine))
-
+    .jobMessage(sprintf("Installing '%s'", name), verbose)
     tryCatch({
       devtools::install_version(
         name,
@@ -98,18 +90,17 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
         INSTALL_opts = "--no-multiarch"
       )
 
-      cat(.report()$success)
+      .reportSuccess()
     },
     error = function(e) {
-      cat(.report()$failure)
-      warning(conditionMessage(e))
+      .terminateOnCondition(e)
     })
   }
 
   iwalk(
     c(    # maintain this order, so that RQDA is attempted last
-      cairoDevice = "2.28.2.1",
       gWidgets = '0.0-54.2',
+      cairoDevice = "2.28.2.1",
       gWidgetsRGtk2 = '0.0-86',
       RQDA = '0.3-1'
     ),
@@ -124,11 +115,7 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
 
 
 #' @importFrom devtools install
-#' @importFrom purrr map_lgl
-#' @importFrom purrr walk
-#' @importFrom stringr %>%
-#' @importFrom stringr str_replace_all
-#' @importFrom utils download.file
+#' @importFrom utils install.packages
 #' @importFrom utils untar
 #' @importFrom utils unzip
 #'
@@ -144,73 +131,135 @@ install_rgtk2_and_deps <-
     tmpdir <- tempdir()
 
     if (.onWindows()) {
+      .jobMessage("Check for the Gtk distribution", verbose)
 
-      if (type == "binary") {
-
-        if (!.pkgExists("RGtk2")) {
-          install.packages(
-            "https://access.togaware.com/RGtk2_2.20.36.2.zip",
-            repos = NULL,
-            verbose = verbose,
-            quiet = !verbose
-          )
-          warning(
-            "RGtk2 has been installed but still needs Gtk+ to run correctly.",
-            "Run 'library(RGtk2)' and follow the prompt to install Gtk+.",
-            "Then, run 'RQDAassist::install' again to complete the installation.",
-            call. = FALSE
-          )
-        }
-
-        return(invisible())
-      }
-
-      ## The rest of the function is for handling source installs
-      gtkroot <- "C:/GTK"
-      cat("Check for Gtk distribution... ")
-
-      if (dir.exists(gtkroot)) {
-        cat("present\n")
+      if (dir.exists(gtkroot())) {
+        cat("found\n")
       }
       else {
-        cat("absent\n")
-        pref <- "gtk+-bundle_2.22.1-"
+        cat("missing\n")
+        prefix <- "gtk+-bundle_2.22.1-"
 
         if (.Platform$r_arch == "x64") {
           arch <- "win64"
-          gtkarch <- sprintf("%s20101229_%s.zip", pref, arch)
+          gtkarch <- sprintf("%s20101229_%s.zip", prefix, arch)
         }
         else {
           arch <- "win32"
-          gtkarch <- sprintf("%s20101227_%s.zip", pref, arch)
+          gtkarch <- sprintf("%s20101227_%s.zip", prefix, arch)
         }
 
         gtkarch.dir <-
           sprintf("https://download.gnome.org/binaries/%s/gtk+/2.22", arch)
         gtk.path <- paste(gtkarch.dir, gtkarch, sep = "/")
-        gtkzip <- .downloadArchive(gtk.path, tmpdir)
 
-        # Extract to root directory
-        # TODO: Establish an option for re-downloading GTK+ in the event of
-        # installation failure caused by missing dependencies for compilation
-        #        unlink(gtkroot, recursive = TRUE, force = TRUE)
+        .jobMessage("Download the GTK distribution", verbose)
         tryCatch({
-          cat("Installing GTK distribution to 'C:\' ... ")
+          gtkzip <- .downloadArchive(gtk.path, tmpdir)
+          .reportSuccess()
+        }, error = function(e) .terminateOnCondition(e))
 
-          if (!length(unzip(gtkzip, exdir = gtkroot)))
+        .jobMessage("Install the GTK distribution to 'C:\\'", verbose)
+        tryCatch({
+          if (!length(unzip(gtkzip, exdir = gtkroot())))
             stop(.extractionFailMessage("GTK distribution"))
-          file.remove(gtkzip)
-          cat(.report()$success)
-        },
-        error = function(e) {
-          cat(.report()$failure)
-          stop(conditionMessage(e), call. = FALSE)
-        })
 
-        # Per instructions in 'RGtk2/INSTALL'
-        cat("Set environment variable 'GTK_PATH'\n")
-        Sys.setenv(GTK_PATH = gtkroot)
+          file.remove(gtkzip)
+          .reportSuccess()
+        }, error = function(e) .terminateOnCondition(e))
+
+        cat(sprintf("Set environment variable %s\n", sQuote(names(gtkroot()))))
+        .setGtkEnvar()
       }
+
+      if (!.pkgExists("RGtk2")) {
+        if (type == "binary") {
+
+          .jobMessage("Install binary build of RGtk2", verbose)
+          tryCatch({
+            install.packages(
+              "https://access.togaware.com/RGtk2_2.20.36.2.zip",
+              repos = NULL,
+              verbose = verbose,
+              quiet = !verbose
+            )
+
+            .reportSuccess()
+          }, error = function(e)
+            .terminateOnCondition(e))
+        }
+        else if (type == "source") {
+          rgtk2.cran <-
+            file.path(.cranIndex(),
+                      "src/contrib/Archive/RGtk2/RGtk2_2.20.36.3.tar.gz")
+
+          .jobMessage("Download RGtk2 archive", verbose)
+          tryCatch({
+            rtar <- .downloadArchive(rgtk2.cran, tmpdir)
+            .reportSuccess()
+          },
+          error = function(e)
+            .terminateOnCondition(e))
+
+          .jobMessage("Extract RGtk2 archive", verbose)
+          tryCatch({
+            if (untar(rtar, exdir = tmpdir, verbose = TRUE) != 0L)
+              stop(.extractionFailMessage("RGtk2"))
+
+            file.remove(rtar)
+            .reportSuccess()
+          },
+          error = function(e)
+            .terminateOnCondition(e))
+
+          # RGtk2 will be built from source. We use the option --no-test-load to
+          # prevent attempts at loading the package, which could fail due to the
+          # absence of Gtk+ binaries within the package at the time of
+          # installation.
+          .jobMessage("Install RGtk2", verbose)
+          tryCatch({
+            devtools::install(
+              pkg = file.path(tmpdir, "RGtk2"),
+              reload = FALSE,
+              build = TRUE,
+              args = c("--no-multiarch", "--no-test-load"),
+              upgrade = 'never',
+              quiet = !verbose
+            )
+
+            .reportSuccess()
+          },
+          error = function(e)
+            .terminateOnCondition(e))
+        }
+      }
+
+      if (.pkgExists("RGtk2") && dir.exists(.pkgLocalGtkPath()))
+        return(invisible())    # TODO: Perhaps check contents
+
+      dir.create(.pkgLocalGtkPath(), recursive = TRUE)
+
+      # TODO: Is this really necessary?
+      .jobMessage("Copy Gtk+ to RGtk2", verbose)
+      tryCatch({
+        successes <- vapply(
+          list.files(gtkroot(), full.names = TRUE),
+          file.copy,
+          logical(1),
+          to = .pkgLocalGtkPath(),
+          recursive = TRUE
+        )
+
+        if (!all(successes))
+          stop(call. = FALSE)
+
+        .reportSuccess()
+      },
+      error = function(e) {
+        warning("Gtk+ was not properly copied to RGtk2", call. = FALSE)
+        .terminateOnCondition(e)
+      })
+
     }
     else if (R.version$platform == "x86_64-pc-linux-gnu") {
       sudoInstall <- "sudo apt-get install -y libgtk2.0-dev"
@@ -244,88 +293,6 @@ install_rgtk2_and_deps <-
     else {
       warning("Automatic Gtk distribution is not supported for this platform")
     }
-
-    # Download the RGtk2 tarball from CRAN and extract package (all platforms)
-    if (!.pkgExists("RGtk2")) {
-      tryCatch({
-        cat("Download RGtk2 archive ... ")
-
-        rgtk2.cran <-
-          file.path(.cranIndex(),
-                    "src/contrib/Archive/RGtk2/RGtk2_2.20.36.3.tar.gz")
-
-        rtar <- .downloadArchive(rgtk2.cran, tmpdir)
-        cat(.report()$success)
-      },
-      error = function(e) {
-        cat(.report()$failure)
-        stop(conditionMessage(e), call. = FALSE)
-      })
-
-      tryCatch({
-        cat("Extract RGtk2 archive ... ")
-
-        if (untar(rtar, exdir = tmpdir, verbose = TRUE) != 0L)
-          stop(.extractionFailMessage("RGtk2"))
-
-        file.remove(rtar)
-
-        # RGtk2 will be built from source. We use the option --no-test-load to
-        # prevent attempts at loading the package, which could fail due to the
-        # absence of Gtk+ binaries within the package at the time of
-        # installation.
-        devtools::install(
-          pkg = file.path(tmpdir, "RGtk2"),
-          reload = FALSE,
-          build = TRUE,
-          args = c("--no-multiarch", "--no-test-load"),
-          upgrade = 'never',
-          quiet = !verbose
-        )
-      },
-      error = function(e) {
-        cat(.report()$failure)
-        stop(conditionMessage(e), call. = FALSE)
-      })
-    }
-
-    if (!.onWindows())
-      return(invisible())
-
-    gtk.int.path <- .pkgLocalGtkPath()
-
-    if (dir.exists(gtk.int.path))   # TODO: Perhaps check contents
-      return(invisible())
-
-    withCallingHandlers(
-      dir.create(gtk.int.path, recursive = TRUE),
-      warning = function(w) {
-        warning("Run `library(RGtk2)` to install Gtk+ when prompted")
-        return(invisible())
-      }
-    )
-
-    cat("Copy Gtk+ distribution to RGtk2 ... ")
-
-    tryCatch({
-      successes <- vapply(
-        list.files(gtkroot, full.names = TRUE),
-        file.copy,
-        logical(1),
-        to = gtk.int.path,
-        recursive = TRUE
-      )
-
-      if (!all(successes))
-        stop(call. = FALSE)
-
-      cat(.report()$success)
-    },
-    error = function(e) {
-      cat(.report()$failure)
-      warning("Gtk+ was not properly situated in RGtk2", call. = FALSE)
-      warning(conditionMessage(e), call. = FALSE)
-    })
   }
 
 
@@ -447,6 +414,7 @@ install_rgtk2_and_deps <-
 
 
 
+#' @importFrom utils download.file
 .downloadArchive <- function(url, destdir)
 {
   stopifnot(dir.exists(destdir))
@@ -482,12 +450,48 @@ install_rgtk2_and_deps <-
 
 
 
-
+#' @importFrom assertthat is.string
 .extractionFailMessage <- function(str)
 {
-  stopifnot({
-    is.character(str)
-    length(str) == 1L
-  })
+  stopifnot(assertthat::is.string(str))
   sprintf("Extraction of %s failed")
+}
+
+
+
+
+.terminateOnCondition <- function(err)
+{
+  stopifnot(inherits(err, "simpleError"))
+  cat(.report()$failure)
+  stop(conditionMessage(err), call. = FALSE)
+}
+
+
+
+
+.reportSuccess <- function()
+{
+  cat(.report()$success)
+}
+
+
+
+.jobMessage <- function(str, verbose)
+{
+  endl <- if (verbose) "\n" else "..."
+  cat(sprintf("%s %s ", str, endl))
+}
+
+
+
+
+gtkroot <- function() {
+  c(GTK_PATH = "C:/GTK")
+}
+
+
+
+.setGtkEnvar <- function() {
+  Sys.setenv(GTK_PATH = gtkroot())
 }

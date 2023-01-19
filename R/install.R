@@ -34,16 +34,21 @@ install <- function(type = c("binary", "source"), verbose = TRUE)
   .crosscheckArgs(type, verbose)
   .startupPrompt(type)
 
-  if (.onWindows() && !devtools::has_devel(quiet = !verbose))
-    stop(sprintf(
-      paste(
-        "Your system is not ready to build packages.",
-        "Please visit %s to install Rtools."
+  if (.onWindows()) {
+    if (!devtools::has_devel(quiet = !verbose))
+      stop(sprintf(
+        paste(
+          "Your system is not ready to build packages.",
+          "Please visit %s to install Rtools."
+        ),
+        sQuote(file.path(.cranIndex(), "bin/Rtools/history.html"))
       ),
-      sQuote(file.path(.cranIndex(), "bin/Rtools/history.html"))
-    ),
-    call. = FALSE)
-
+      call. = FALSE)
+	
+	if (getRversion() >= 4.2)
+	  stop("RQDA cannot be installed for R version 4.2 and above on Windows")
+  }
+  
   if (!.pkgExists("igraph"))
     install.packages("igraph",
                      repos = 'https://cran.rstudio.com',

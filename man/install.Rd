@@ -5,9 +5,9 @@
 \alias{install_rgtk2_and_deps}
 \title{Install Archived RQDA}
 \usage{
-install(type = c("binary", "source"), verbose = TRUE)
+install(type = c("binary", "source"), verbose = FALSE)
 
-install_rgtk2_and_deps(type = c("binary", "source"), verbose = TRUE)
+install_rgtk2_and_deps(type = c("binary", "source"), verbose = FALSE)
 }
 \arguments{
 \item{type}{A string, one of \code{binary} or \code{source}.}

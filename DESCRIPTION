@@ -1,12 +1,12 @@
 Package: RQDAassist
 Type: Package
 Title: Helpers for RQDA
-Version: 0.5.4
-Date: 2023-01-12
+Version: 0.6.0
+Date: 2023-01-22
 Authors@R: person("Victor", "Ordu", email = "victorordu@outlook.com",
     role = c("aut", "cre"))
 Maintainer: Victor Ordu <victorordu@outlook.com>
-Description: Functions that make it easier to use the RQDA package.
+Description: Functions that make it easier to install and use the RQDA package.
 Depends: 
     R (>= 4.0),
     RSQLite (>= 2.2.2)

@@ -3,11 +3,11 @@
 \name{install}
 \alias{install}
 \alias{install_rgtk2_and_deps}
-\title{Install RQDA Archive}
+\title{Install Archived RQDA}
 \usage{
-install(type = c("binary", "source"), verbose = TRUE)
+install(type = c("binary", "source"), verbose = FALSE)
 
-install_rgtk2_and_deps(type = c("binary", "source"), verbose = TRUE)
+install_rgtk2_and_deps(type = c("binary", "source"), verbose = FALSE)
 }
 \arguments{
 \item{type}{A string, one of \code{binary} or \code{source}.}
@@ -15,7 +15,7 @@ install_rgtk2_and_deps(type = c("binary", "source"), verbose = TRUE)
 \item{verbose}{logical.}
 }
 \description{
-Install RQDA from CRAN archives and whilst performing installing its core
+Install RQDA from CRAN archives and at the same time installing its core
 dependencies namely, RGtk2, cairoDevice, gWidgets, and gWidgetsRGtk2.
 }
 \details{
@@ -23,11 +23,14 @@ The \code{install} function carries out wholesale installation of
 all the packages required by RQDA, before actually installing it.
 
 \code{install_rgtk2_and_deps()} installs RGtk2. Before doing so, it fetches
-the Gtk+ distribution, making it available for RGtk2 compilation and
-subsequent usage as a package.
+the Gtk+ distribution, making it available for the compilations of RGtk2
+when a source installation is used; for the binary installation, Gtk+ is
+installed interactively when an attempt is made to load RGtk2 for the first
+time.
 }
 \note{
-The binary option will download RGtk2 and cairoDevice from non-CRAN
-locations, while RQDA, gWidgets, and gWidgetsRGtk2 are downloaded as source
-packages.
+The binary option will download RGtk2 from non-CRAN repository.
+RQDA, cairoDevice, gWidgets, and gWidgetsRGtk2 are downloaded as source
+packages from the CRAN archive. Windows users will need an appropriate
+version of Rtools to build the packages.
 }

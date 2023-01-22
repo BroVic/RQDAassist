@@ -1,7 +1,7 @@
 Package: RQDAassist
 Type: Package
 Title: Helpers for RQDA
-Version: 0.5.4.9010
+Version: 0.6.0
 Date: 2023-01-22
 Authors@R: person("Victor", "Ordu", email = "victorordu@outlook.com",
     role = c("aut", "cre"))

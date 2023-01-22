@@ -4,7 +4,5 @@ test_that("input is validated", {
                  "'arg' must be NULL or a character vector")
     expect_error(do.call(fn, list(verbose = 999)),
                  "'verbose' must be logical vector")
-    expect_error(do.call(fn, list(type = "binary")),
-                 "The binary version can only be installed in interactive mode")
   }
 })

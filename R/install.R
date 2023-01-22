@@ -410,11 +410,9 @@ install_rgtk2_and_deps <-
 #' @importFrom assertthat is.string
 .validateArgs <- function(type, verbose)
 {
-  if (!assertthat::is.string(type))
-    stop("'type' must be a string")
-
-  if (!(type %in% c("binary", "source")))
-    stop("'type' should be one of 'binary' or 'source'")
+  type <- tryCatch(match.arg(type, c("binary", "source")),
+                   error = function(e)
+                     stop(conditionMessage(e), call. = FALSE))
 
   if (!is.logical(verbose))
     stop("'verbose' must be logical vector")

@@ -32,7 +32,7 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
 {
   .validateArgs(type, verbose)
   .startupPrompt(type)
-  .checkBuildReadiness()
+  .checkBuildReadiness(verbose)
   try(.installCranBinaries("igraph"))
   try(install_rgtk2_and_deps(type, verbose))
 
@@ -112,7 +112,7 @@ install_rgtk2_and_deps <-
   function(type = c("binary", "source"), verbose = FALSE)
   {
     .validateArgs(type, verbose)
-    .checkBuildReadiness(type, verbose)
+    .checkBuildReadiness(verbose)
     tmpdir <- tempdir()
     rgtk2 <- "RGtk2"
 
@@ -327,9 +327,9 @@ install_rgtk2_and_deps <-
 
 
 
-.checkBuildReadiness <- function()
+.checkBuildReadiness <- function(verbose)
 {
-  .checkBuildTools()
+  .checkBuildTools(verbose)
   .checkRversion()
 }
 
@@ -350,7 +350,7 @@ install_rgtk2_and_deps <-
 
 
 
-.checkBuildTools <- function()
+.checkBuildTools <- function(verbose)
 {
   if (!.onWindows())
     return(TRUE)

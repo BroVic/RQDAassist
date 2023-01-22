@@ -33,7 +33,15 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
   .validateArgs(type, verbose)
   .startupPrompt(type)
   .checkBuildReadiness(verbose)
-  try(.installCranBinaries("igraph"))
+  cranBinaries <- "igraph"
+  amiss <- !.pkgExists(cranBinaries)
+
+  if (any(amiss))
+    install.packages(cranBinaries[amiss],
+                     repos = 'https://cran.rstudio.com',
+                     quiet = !verbose,
+                     type = "binary")
+
   try(install_rgtk2_and_deps(type, verbose))
 
   installArchivedCranPackage <- function(ver, name) {
@@ -377,20 +385,6 @@ install_rgtk2_and_deps <-
   paste0(p, '\n')
 }
 
-
-
-
-
-
-.installCranBinaries <- function(pkgs)
-{
-  amiss <- !.pkgExists(pkgs)
-  if (any(amiss))
-    install.packages(pkgs[amiss],
-                     repos = 'https://cran.rstudio.com',
-                     quiet = !verbose,
-                     type = "binary")
-}
 
 
 

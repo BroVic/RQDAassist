@@ -25,7 +25,7 @@ on it for their work.
 ***Note: Since the introduction of
 [UCRT](https://blog.r-project.org/2021/12/07/upcoming-changes-in-r-4.2-on-windows/)-based
 R builds (starting from R 4.2) the RQDA dependencies cannot be built
-with the current toolset. Please use $R \le 4.1.3$***.
+with the current toolset. Please use R 4.0 to 4.1***.
 
 ## Installation
 

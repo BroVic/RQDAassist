@@ -32,35 +32,11 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
 {
   .validateArgs(type, verbose)
   .startupPrompt(type)
-
-  if (.onWindows()) {
-    if (!devtools::has_devel(quiet = !verbose))
-      stop(sprintf(
-        paste(
-          "Your system is not ready to build packages.",
-          "Please visit %s to install Rtools."
-        ),
-        sQuote(file.path(.cranIndex(), "bin/Rtools/history.html"))
-      ),
-      call. = FALSE)
-
-	if (getRversion() >= 4.2)
-	  stop("On Windows, RQDA cannot be installed for R 4.2 and above")
-  }
-
-  cranBinaries <- "igraph"
-
-  if (!.pkgExists(cranBinaries))
-    install.packages(cranBinaries,
-                     repos = 'https://cran.rstudio.com',
-                     quiet = !verbose,
-                     type = "binary")
-
+  .checkBuildReadiness()
+  try(.installCranBinaries("igraph"))
   try(install_rgtk2_and_deps(type, verbose))
 
-  ## Controls how each package is installed. This function is applied
-  ## below to a named vector of the source package versions.
-  installPackageByVersion <- function(ver, name) {
+  installArchivedCranPackage <- function(ver, name) {
     if (.pkgExists(name)) {
       cat("Package already installed:", name, "\n")
       return()
@@ -68,8 +44,8 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
 
     if (identical(name, "cairoDevice")) {
       if (!dir.exists(gtkroot())) {
-      warning("'cairoDevice' was skipped due to absence of GTK distribution")
-      return()
+        warning("'cairoDevice' was skipped due to absence of GTK distribution")
+        return()
       }
 
       .setGtkEnvar()
@@ -80,7 +56,8 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
     if (.onWindows() && rgtk2ReadyForUse)
       rgtk2ReadyForUse <- dir.exists(.pkgLocalGtkPath())
 
-    if (name %in% c('gWidgetsRGtk2', 'RQDA') && isFALSE(rgtk2ReadyForUse)) {
+    if (name %in% c('gWidgetsRGtk2', 'RQDA') &&
+        isFALSE(rgtk2ReadyForUse)) {
       warning(sQuote(name),
               " requires the proper installation of ",
               sQuote("RGTk2"))
@@ -106,13 +83,14 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
   }
 
   iwalk(
-    c(    # maintain this order, so that RQDA is attempted last
+    c(
+      # maintain this order, so that RQDA is attempted last
       gWidgets = '0.0-54.2',
       cairoDevice = "2.28.2.1",
       gWidgetsRGtk2 = '0.0-86',
       RQDA = '0.3-1'
     ),
-    installPackageByVersion
+    installArchivedCranPackage
   )
 }
 
@@ -134,6 +112,7 @@ install_rgtk2_and_deps <-
   function(type = c("binary", "source"), verbose = FALSE)
   {
     .validateArgs(type, verbose)
+    .checkBuildReadiness(type, verbose)
     tmpdir <- tempdir()
     rgtk2 <- "RGtk2"
 
@@ -314,8 +293,6 @@ install_rgtk2_and_deps <-
 #' @importFrom assertthat is.string
 .startupPrompt <- function(inst.type)
 {
-  stopifnot(assertthat::is.string(inst.type))
-
   if (!interactive() || inst.type == 'binary')
     return(invisible())
 
@@ -350,6 +327,48 @@ install_rgtk2_and_deps <-
 
 
 
+.checkBuildReadiness <- function()
+{
+  .checkBuildTools()
+  .checkRversion()
+}
+
+
+
+
+
+.checkRversion <- function()
+{
+  if (!.onWindows())
+    return()
+
+  if (getRversion() >= 4.2)
+    stop("Dependencies currently not installable in R For Windows >= 4.2 ")
+}
+
+
+
+
+
+.checkBuildTools <- function()
+{
+  if (!.onWindows())
+    return(TRUE)
+
+  if (!devtools::has_devel(quiet = !verbose))
+    warning(sprintf(
+      paste(
+        "Your system is not ready to build packages.",
+        "Please visit %s to install Rtools."
+      ),
+      sQuote(file.path(.cranIndex(), "bin/Rtools/history.html"))
+    ),
+    call. = FALSE)
+}
+
+
+
+
 
 ## Reports end result of a given operation
 .report <- function()
@@ -358,6 +377,20 @@ install_rgtk2_and_deps <-
   paste0(p, '\n')
 }
 
+
+
+
+
+
+.installCranBinaries <- function(pkgs)
+{
+  amiss <- !.pkgExists(pkgs)
+  if (any(amiss))
+    install.packages(pkgs[amiss],
+                     repos = 'https://cran.rstudio.com',
+                     quiet = !verbose,
+                     type = "binary")
+}
 
 
 
@@ -403,6 +436,16 @@ install_rgtk2_and_deps <-
 
 
 
+.validateInstallType <- function(type)
+{
+  tryCatch(match.arg(type, c("binary", "source")),
+           error = function(e)
+             stop(conditionMessage(e), call. = FALSE))
+}
+
+
+
+
 
 
 # Checks the two arguments passed onto the installation functions.
@@ -410,9 +453,7 @@ install_rgtk2_and_deps <-
 #' @importFrom assertthat is.string
 .validateArgs <- function(type, verbose)
 {
-  type <- tryCatch(match.arg(type, c("binary", "source")),
-                   error = function(e)
-                     stop(conditionMessage(e), call. = FALSE))
+  type <- .validateInstallType(type)
 
   if (!is.logical(verbose))
     stop("'verbose' must be logical vector")

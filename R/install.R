@@ -574,3 +574,42 @@ gtkroot <- function() {
 .setGtkEnvar <- function() {
   Sys.setenv(GTK_PATH = gtkroot())
 }
+
+
+
+
+
+
+.installRRtools <- function(verbose)
+{
+  stopifnot(is.logical(verbose))
+  download.dir <- file.path(Sys.getenv("HOME"), "Downloads")
+  rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
+  rtools <- paste(
+    "https://github.com",
+    "r-windows/rtools-installer/releases/download/2022-02-06/rtools40-x86_64.exe",
+    sep = "/"
+    )
+
+  if (!dir.exists(download.dir))
+    download.dir <- tempdir()  ## TODO: Add a message
+
+  installRRtoolsSoftware <- function(rurl) {
+    if (basename(download.dir) == "Downloads") {
+      rsoft <- basename(rurl)
+
+      download <- if (rsoft %in% list.files(download.dir))
+        file.path(download.dir, rsoft)
+      else
+        .downloadArchive(rurl, download.dir, quiet = !verbose)
+    }
+
+    shell.exec(download)
+  }
+
+  if (getRversion() < "4.0" || getRversion() >= "4.2")
+    installRRtoolsSoftware(rexe)
+
+  if (!dir.exists("C:/rtools40"))
+    installRRtoolsSoftware(rtools)
+}

@@ -22,15 +22,23 @@ dependencies namely, RGtk2, cairoDevice, gWidgets, and gWidgetsRGtk2.
 The \code{install} function carries out wholesale installation of
 all the packages required by RQDA, before actually installing it.
 
-\code{install_rgtk2_and_deps()} installs RGtk2. Before doing so, it fetches
-the Gtk+ distribution, making it available for the compilations of RGtk2
-when a source installation is used; for the binary installation, Gtk+ is
-installed interactively when an attempt is made to load RGtk2 for the first
-time.
+\code{install_rgtk2_and_deps} installs RGtk2. Before doing so, it fetches
+the Gtk+ distribution, making it available for RGtk2. When a source
+installation is used, GTK is required for compiling RGtk2 (and cairoDevice);
+for the binary installation, Gtk+ is required for proper usage of RGtk2.
 }
 \note{
-The binary option will download RGtk2 from non-CRAN repository.
+The binary option will download RGtk2 from non-CRAN repository, while
 RQDA, cairoDevice, gWidgets, and gWidgetsRGtk2 are downloaded as source
-packages from the CRAN archive. Windows users will need an appropriate
-version of Rtools to build the packages.
+packages from the CRAN archive. Windows users will need a version of Rtools
+that is compatible with the R version to build the packages e.g. Rtools40
+for R 4.1.3.
+}
+\examples{
+# install RQDA (and dependencies) using defaults
+\dontrun{install()}
+
+# install all from source, verbosely
+\dontrun{install("source", TRUE)}
+
 }

@@ -76,7 +76,8 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
         isFALSE(rgtk2ReadyForUse)) {
       warning(sQuote(name),
               " requires the proper installation of ",
-              sQuote("RGTk2"))
+              sQuote("RGTk2"),
+              call. = FALSE)
       return()
     }
 
@@ -169,10 +170,10 @@ install_rgtk2_and_deps <-
           file.remove(gtkzip)
           .reportSuccess()
         }, error = function(e) .terminateOnError(e))
-
-        cat(sprintf("Set environment variable %s\n", sQuote(names(gtkroot()))))
-        .setGtkEnvar()
       }
+
+      cat(sprintf("Set environment variable %s\n", sQuote(names(gtkroot()))))
+      .setGtkEnvar()
 
       if (!.pkgExists(rgtk2)) {
         if (type == "binary") {
@@ -390,7 +391,7 @@ install_rgtk2_and_deps <-
 .report <- function()
 {
   p <- list(success = "done", failure = "failed")
-  paste0(p, '\n')
+  lapply(p, function(x) paste0(x, '\n'))
 }
 
 
@@ -569,7 +570,7 @@ gtkroot <- function() {
 
 
 
-
+# ToDO: Make permanent between sessions
 .setGtkEnvar <- function() {
   Sys.setenv(GTK_PATH = gtkroot())
 }

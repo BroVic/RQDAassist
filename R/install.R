@@ -346,8 +346,11 @@ install_rgtk2_and_deps <-
 
 .checkBuildReadiness <- function(verbose)
 {
-  .checkBuildTools(verbose)
-  .checkRversion()
+  if (!.onWindows())
+    return()
+
+  if (isFALSE(.checkBuildTools()) || isFALSE(.checkRversion()))
+    .installRRtools(verbose)
 }
 
 
@@ -356,11 +359,15 @@ install_rgtk2_and_deps <-
 
 .checkRversion <- function()
 {
-  if (!.onWindows())
-    return()
+  result <- TRUE
 
-  if (getRversion() >= 4.2)
-    stop("Dependencies currently not installable in R For Windows >= 4.2 ")
+  if (getRversion() >= 4.2) {
+    warning("Dependencies currently not installable in R For Windows >= 4.2 ",
+            call. = FALSE)
+    result <- FALSE
+  }
+
+  result
 }
 
 
@@ -369,18 +376,23 @@ install_rgtk2_and_deps <-
 
 .checkBuildTools <- function(verbose)
 {
-  if (!.onWindows())
-    return(TRUE)
+  result <- FALSE
 
-  if (!devtools::has_devel(quiet = !verbose))
-    warning(sprintf(
-      paste(
-        "Your system is not ready to build packages.",
-        "Please visit %s to install Rtools."
-      ),
-      sQuote(file.path(.cranIndex(), "bin/Rtools/history.html"))
+  if (devtools::has_devel(quiet = !verbose))
+    result <- TRUE
+
+  warning(sprintf(
+    paste(
+      "Your system is not ready to build packages.",
+      "Please visit %s to install Rtools40 if automatic installtion fails."
     ),
-    call. = FALSE)
+    sQuote(file.path(
+      .cranIndex(), "bin/Rtools/history.html"
+    ))
+  ),
+  call. = FALSE)
+
+  result
 }
 
 
@@ -394,6 +406,21 @@ install_rgtk2_and_deps <-
   lapply(p, function(x) paste0(x, '\n'))
 }
 
+
+
+
+
+
+.installCranBinaries <- function(pkgs)
+{
+  amiss <- !.pkgExists(pkgs)
+
+  if (any(amiss))
+    install.packages(pkgs[amiss],
+                     repos = 'https://cran.rstudio.com',
+                     quiet = !verbose,
+                     type = "binary")
+}
 
 
 
@@ -582,34 +609,50 @@ gtkroot <- function() {
 
 .installRRtools <- function(verbose)
 {
-  stopifnot(is.logical(verbose))
   download.dir <- file.path(Sys.getenv("HOME"), "Downloads")
+
+  if (!dir.exists(download.dir)) {
+    message(
+      "There is no folder named ",
+      sQuote(basename(download.dir)),
+      ". Installer(s) will be downloaded to a temporary location."
+    )
+    download.dir <- tempdir()  ## TODO: Add a message
+  }
+
+  installSoftware <- function(softurl) {
+    if (basename(download.dir) == "Downloads") {
+      softname <- basename(softurl)
+
+      installer <- if (softname %in% list.files(download.dir))
+        file.path(download.dir, softname)
+      else
+        .downloadArchive(softurl, download.dir, quiet = !verbose)
+    }
+
+    tryCatch({
+      if (verbose)
+        message("Install ", sQuote(softname), " ... ", appendLF = FALSE)
+
+      shell.exec(installer)
+      message(.report()$success)
+    },
+    error = function(e) {
+      message(.report()$failure)
+      warning(conditionMessage(e), call. = FALSE)
+    })
+  }
+
   rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
   rtools <- paste(
     "https://github.com",
     "r-windows/rtools-installer/releases/download/2022-02-06/rtools40-x86_64.exe",
     sep = "/"
-    )
-
-  if (!dir.exists(download.dir))
-    download.dir <- tempdir()  ## TODO: Add a message
-
-  installRRtoolsSoftware <- function(rurl) {
-    if (basename(download.dir) == "Downloads") {
-      rsoft <- basename(rurl)
-
-      download <- if (rsoft %in% list.files(download.dir))
-        file.path(download.dir, rsoft)
-      else
-        .downloadArchive(rurl, download.dir, quiet = !verbose)
-    }
-
-    shell.exec(download)
-  }
+  )
 
   if (getRversion() < "4.0" || getRversion() >= "4.2")
-    installRRtoolsSoftware(rexe)
+    installSoftware(rexe)
 
   if (!dir.exists("C:/rtools40"))
-    installRRtoolsSoftware(rtools)
+    installSoftware(rtools)
 }

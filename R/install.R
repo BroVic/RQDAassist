@@ -1,4 +1,6 @@
-globalVariables(".")
+#
+# Source file: install.R
+#
 
 #' Install Archived RQDA
 #'
@@ -81,7 +83,7 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
       return()
     }
 
-    .jobMessage(sprintf("Installing '%s'", name), verbose)
+    .catJobMessage(sprintf("Installing '%s'", name), verbose)
     tryCatch({
       devtools::install_version(
         name,
@@ -92,7 +94,7 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
         INSTALL_opts = "--no-multiarch"
       )
 
-      .reportSuccess()
+      .catReportSuccess()
     },
     error = function(e) {
       .terminateOnError(e)
@@ -134,7 +136,7 @@ install_rgtk2_and_deps <-
     rgtk2 <- "RGtk2"
 
     if (.onWindows()) {
-      .jobMessage("Check for the Gtk distribution", verbose)
+      .catJobMessage("Check for the Gtk distribution", verbose)
 
       if (dir.exists(gtkroot())) {
         cat("found\n")
@@ -156,19 +158,19 @@ install_rgtk2_and_deps <-
           sprintf("https://download.gnome.org/binaries/%s/gtk+/2.22", arch)
         gtk.path <- paste(gtkarch.dir, gtkarch, sep = "/")
 
-        .jobMessage("Download the GTK distribution", verbose)
+        .catJobMessage("Download the GTK distribution", verbose)
         tryCatch({
           gtkzip <- .downloadArchive(gtk.path, tmpdir, quiet = !verbose)
-          .reportSuccess()
+          .catReportSuccess()
         }, error = function(e) .terminateOnError(e))
 
-        .jobMessage("Install the GTK distribution to 'C:\\'", verbose)
+        .catJobMessage("Install the GTK distribution to 'C:\\'", verbose)
         tryCatch({
           if (!length(unzip(gtkzip, exdir = gtkroot())))
             stop(.extractionFailMessage("GTK distribution"))
 
           file.remove(gtkzip)
-          .reportSuccess()
+          .catReportSuccess()
         }, error = function(e) .terminateOnError(e))
       }
 
@@ -178,7 +180,7 @@ install_rgtk2_and_deps <-
       if (!.pkgExists(rgtk2)) {
         if (type == "binary") {
 
-          .jobMessage("Install binary build of RGtk2", verbose)
+          .catJobMessage("Install binary build of RGtk2", verbose)
           tryCatch({
             if (!verbose)
               sink(tempfile())
@@ -191,7 +193,7 @@ install_rgtk2_and_deps <-
             if (!verbose)
               sink()
 
-            .reportSuccess()
+            .catReportSuccess()
           },
           error = function(e)
             .terminateOnError(e))
@@ -201,21 +203,21 @@ install_rgtk2_and_deps <-
             file.path(.cranIndex(),
                       "src/contrib/Archive/RGtk2/RGtk2_2.20.36.3.tar.gz")
 
-          .jobMessage("Download RGtk2 archive", verbose)
+          .catJobMessage("Download RGtk2 archive", verbose)
           tryCatch({
             rtar <- .downloadArchive(rgtk2.cran, tmpdir, quiet = !verbose)
-            .reportSuccess()
+            .catReportSuccess()
           },
           error = function(e)
             .terminateOnError(e))
 
-          .jobMessage("Extract RGtk2 archive", verbose)
+          .catJobMessage("Extract RGtk2 archive", verbose)
           tryCatch({
             if (untar(rtar, exdir = tmpdir, verbose = verbose) != 0L)
               stop(.extractionFailMessage(rgtk2))
 
             file.remove(rtar)
-            .reportSuccess()
+            .catReportSuccess()
           },
           error = function(e)
             .terminateOnError(e))
@@ -224,7 +226,7 @@ install_rgtk2_and_deps <-
           # prevent attempts at loading the package, which could fail due to the
           # absence of Gtk+ binaries within the package at the time of
           # installation.
-          .jobMessage("Install RGtk2", verbose)
+          .catJobMessage("Install RGtk2", verbose)
           tryCatch({
             devtools::install(
               pkg = file.path(tmpdir, rgtk2),
@@ -234,8 +236,7 @@ install_rgtk2_and_deps <-
               upgrade = 'never',
               quiet = !verbose
             )
-
-            .reportSuccess()
+            .catReportSuccess()
           },
           error = function(e)
             .terminateOnError(e))
@@ -246,7 +247,7 @@ install_rgtk2_and_deps <-
         return(invisible())    # TODO: Perhaps check contents
 
       dir.create(.pkgLocalGtkPath(), recursive = TRUE)
-      .jobMessage("Copy Gtk+ to RGtk2", verbose)
+      .catJobMessage("Copy Gtk+ to RGtk2", verbose)
       tryCatch({
         successes <- vapply(
           list.files(gtkroot(), full.names = TRUE),
@@ -259,7 +260,7 @@ install_rgtk2_and_deps <-
         if (!all(successes))
           stop(call. = FALSE)
 
-        .reportSuccess()
+        .catReportSuccess()
       },
       error = function(e) {
         warning("Gtk+ was not properly copied to RGtk2", call. = FALSE)
@@ -411,21 +412,6 @@ install_rgtk2_and_deps <-
 
 
 
-.installCranBinaries <- function(pkgs)
-{
-  amiss <- !.pkgExists(pkgs)
-
-  if (any(amiss))
-    install.packages(pkgs[amiss],
-                     repos = 'https://cran.rstudio.com',
-                     quiet = !verbose,
-                     type = "binary")
-}
-
-
-
-
-
 .onWindows <- function() {
   .Platform$OS.type == "windows"
 }
@@ -570,7 +556,7 @@ install_rgtk2_and_deps <-
 
 
 
-.reportSuccess <- function()
+.catReportSuccess <- function()
 {
   cat(.report()$success)
 }
@@ -580,7 +566,7 @@ install_rgtk2_and_deps <-
 
 
 #' @importFrom assertthat is.string
-.jobMessage <- function(str, ...)
+.catJobMessage <- function(str, ...)
 {
   stopifnot(assertthat::is.string(str))
   cat(str, " ... ")
@@ -617,7 +603,7 @@ gtkroot <- function() {
       sQuote(basename(download.dir)),
       ". Installer(s) will be downloaded to a temporary location."
     )
-    download.dir <- tempdir()  ## TODO: Add a message
+    download.dir <- tempdir()
   }
 
   installSoftware <- function(softurl) {

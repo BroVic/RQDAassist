@@ -38,7 +38,7 @@ globalVariables(".")
 #' @export
 install <- function(type = c("binary", "source"), verbose = FALSE)
 {
-  .validateArgs(type, verbose)
+  type <- .validateArgs(type, verbose)
   .startupPrompt(type)
   .checkBuildReadiness(verbose)
   cranBinaries <- "igraph"
@@ -456,8 +456,6 @@ install_rgtk2_and_deps <-
 #' @importFrom assertthat is.string
 .validateArgs <- function(type, verbose)
 {
-  type <- .validateInstallType(type)
-
   if (!is.logical(verbose))
     stop("'verbose' must be logical vector")
 
@@ -465,6 +463,8 @@ install_rgtk2_and_deps <-
     verbose <- verbose[1]
     warning("First element of verbose was taken and the rest ignored")
   }
+
+  .validateInstallType(type)
 }
 
 

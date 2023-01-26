@@ -64,7 +64,7 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
         return()
       }
 
-      .setGtkEnvar()
+      .setGtkEnvironmentVariable(silent = TRUE)
     }
 
     rgtk2ReadyForUse <- .pkgExists("RGtk2")
@@ -172,8 +172,7 @@ install_rgtk2_and_deps <-
         }, error = function(e) .terminateOnError(e))
       }
 
-      cat(sprintf("Set environment variable %s\n", sQuote(names(gtkroot()))))
-      .setGtkEnvar()
+      .setGtkEnvironmentVariable()
 
       if (!.pkgExists(rgtk2)) {
         if (type == "binary") {
@@ -356,11 +355,15 @@ install_rgtk2_and_deps <-
 
 .checkRversion <- function()
 {
-  if (!.onWindows())
-    return()
+  result <- TRUE
 
-  if (getRversion() >= 4.2)
-    stop("Dependencies currently not installable in R For Windows >= 4.2 ")
+  if (getRversion() >= 4.2) {
+    warning("Dependencies currently not installable in R For Windows >= 4.2 ",
+            call. = FALSE)
+    result <- FALSE
+  }
+
+  result
 }
 
 
@@ -571,6 +574,17 @@ gtkroot <- function() {
 
 
 # ToDO: Make permanent between sessions
-.setGtkEnvar <- function() {
-  Sys.setenv(GTK_PATH = gtkroot())
+.setGtkEnvironmentVariable <- function(silent = FALSE) {
+  gtkpath <- gtkroot()
+  envarname <- names(gtkpath)
+
+  if (!silent)
+    cat(sprintf("Set environment variable %s\n", sQuote(envarname)))
+
+  envarunset <- function() { is.null(Sys.getenv(envarname)) }
+
+  if (envarunset())
+    Sys.setenv(GTK_PATH = gtkpath)
+
+  isFALSE(envarunset())
 }

@@ -128,7 +128,7 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
 install_rgtk2_and_deps <-
   function(type = c("binary", "source"), verbose = FALSE)
   {
-    .validateArgs(type, verbose)
+    type <- .validateArgs(type, verbose)
     .checkBuildReadiness(verbose)
     tmpdir <- tempdir()
     rgtk2 <- "RGtk2"
@@ -176,24 +176,24 @@ install_rgtk2_and_deps <-
 
       if (!.pkgExists(rgtk2)) {
         if (type == "binary") {
-
           .jobMessage("Install binary build of RGtk2", verbose)
+
           tryCatch({
-            if (!verbose)
-              sink(tempfile())
-
-            install.packages("https://access.togaware.com/RGtk2_2.20.36.2.zip",
-                             repos = NULL,
-                             verbose = verbose,
-                             quiet = !verbose)
-
-            if (!verbose)
-              sink()
+            install.packages(
+              "https://access.togaware.com/RGtk2_2.20.36.2.zip",
+              repos = NULL,
+              verbose = verbose,
+              quiet = !verbose
+            )
 
             .reportSuccess()
           },
-          error = function(e)
-            .terminateOnError(e))
+          error = function(e) {
+            .terminateOnError(e)
+          },
+          warning = function(w) {
+          })
+
         }
         else if (type == "source") {
           rgtk2.cran <-
@@ -242,10 +242,14 @@ install_rgtk2_and_deps <-
       }
 
       if (.pkgExists(rgtk2) && dir.exists(.pkgLocalGtkPath()))
-        return(invisible())    # TODO: Perhaps check contents
+          return(invisible())    # TODO: Perhaps check contents
+
+      if (!.pkgExists(rgtk2))
+        stop("RGtk2 was not installed")
 
       dir.create(.pkgLocalGtkPath(), recursive = TRUE)
       .jobMessage("Copy Gtk+ to RGtk2", verbose)
+
       tryCatch({
         successes <- vapply(
           list.files(gtkroot(), full.names = TRUE),
@@ -345,21 +349,27 @@ install_rgtk2_and_deps <-
 
 .checkBuildReadiness <- function(verbose)
 {
-  .checkBuildTools(verbose)
-  .checkRversion()
+  if (!.onWindows())
+    return()
+
+  if (isFALSE(.checkBuildTools(verbose)) || isFALSE(.checkRversionCompat()))
+    .installRRtools(quiet = !verbose)
 }
 
 
 
 
 
-.checkRversion <- function()
+.checkRversionCompat <- function()
 {
   result <- TRUE
 
   if (getRversion() >= 4.2) {
-    warning("Dependencies currently not installable in R For Windows >= 4.2 ",
-            call. = FALSE)
+    message("Current R version is ",
+            sQuote(getRversion()),
+            ". Follow the prompt to install a compatible version ",
+            "or install it manually (version 4.0 or 4.1).")
+
     result <- FALSE
   }
 
@@ -578,13 +588,90 @@ gtkroot <- function() {
   gtkpath <- gtkroot()
   envarname <- names(gtkpath)
 
-  if (!silent)
-    cat(sprintf("Set environment variable %s\n", sQuote(envarname)))
-
   envarunset <- function() { is.null(Sys.getenv(envarname)) }
 
-  if (envarunset())
+  if (envarunset()) {
     Sys.setenv(GTK_PATH = gtkpath)
 
+    if (!silent && !envarunset())
+      cat(sprintf("Environment variable %s was set\n", sQuote(envarname)))
+  }
+
   isFALSE(envarunset())
+}
+
+
+
+
+
+
+.installRRtools <- function(...)
+{
+  if (!interactive()) {
+    message("Automated installation of compatible versions of R or Rtools ",
+            "can only take place during interactive sessions")
+    return()
+  }
+
+  download.dir <- file.path(Sys.getenv("HOME"), "Downloads")
+
+  if (!dir.exists(download.dir)) {
+    message(
+      "There is no folder named ",
+      sQuote(basename(download.dir)),
+      ". Installer(s) will be downloaded to a temporary location."
+    )
+    download.dir <- tempdir()
+  }
+
+  rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
+  rtools <- paste(
+    "https://github.com",
+    "r-windows/rtools-installer/releases/download/2022-02-06/rtools40-x86_64.exe",
+    sep = "/"
+  )
+
+  if (getRversion() < "4.0" || getRversion() >= "4.2")
+    ..installSoftware(rexe, download.dir, ...)
+
+  if (!dir.exists("C:/rtools40"))
+    ..installSoftware(rtools, download.dir, ...)
+}
+
+
+
+
+
+
+
+
+..installSoftware <- function(url, dest, ...) {
+  stopifnot(.onWindows())
+  softname <- basename(url)
+  ans <- winDialog("yesno", sprintf("Install %s?", softname))
+
+  if (ans == "NO") {
+    message("Installation of ", sQuote(softname), " aborted")
+    return(invisible())
+  }
+
+  installer <- if (basename(dest) == "Downloads" &&
+                   softname %in% list.files(dest)) {
+    file.path(dest, softname)
+  }
+  else {
+    .downloadArchive(url, dest, ...)
+  }
+
+  tryCatch({
+    if (verbose)
+      message("Install ", sQuote(softname), " ... ", appendLF = FALSE)
+
+    shell.exec(installer)
+    message(.report()$success)
+  },
+  error = function(e) {
+    message(.report()$failure)
+    warning(conditionMessage(e), call. = FALSE)
+  })
 }

@@ -50,7 +50,7 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
                      quiet = !verbose,
                      type = "binary")
 
-  try(install_rgtk2_and_deps(type, verbose))
+  install_rgtk2_and_deps(type, verbose)
 
   installArchivedCranPackage <- function(ver, name) {
     if (.pkgExists(name)) {
@@ -353,7 +353,7 @@ install_rgtk2_and_deps <-
     return()
 
   if (isFALSE(.checkBuildTools(verbose)) || isFALSE(.checkRversionCompat()))
-    .installRRtools(quiet = !verbose)
+    .installRRtools(verbose)
 }
 
 
@@ -365,10 +365,11 @@ install_rgtk2_and_deps <-
   result <- TRUE
 
   if (getRversion() >= 4.2) {
-    message("Current R version is ",
+    warning("Current R version is ",
             sQuote(getRversion()),
             ". Follow the prompt to install a compatible version ",
-            "or install it manually (version 4.0 or 4.1).")
+            "or install it manually (version 4.0 or 4.1).",
+            call. = FALSE)
 
     result <- FALSE
   }
@@ -604,11 +605,11 @@ gtkroot <- function() {
 
 
 
-
-.installRRtools <- function(...)
+#' @importFrom utils readRegistry
+.installRRtools <- function(verbose)
 {
   if (!interactive()) {
-    message("Automated installation of compatible versions of R or Rtools ",
+    message("Automatic installation of compatible versions of R or Rtools ",
             "can only take place during interactive sessions")
     return()
   }
@@ -616,26 +617,37 @@ gtkroot <- function() {
   download.dir <- file.path(Sys.getenv("HOME"), "Downloads")
 
   if (!dir.exists(download.dir)) {
-    message(
-      "There is no folder named ",
-      sQuote(basename(download.dir)),
-      ". Installer(s) will be downloaded to a temporary location."
-    )
+    message("There is no folder named ",
+            sQuote(basename(download.dir)),
+            ". Installer(s) will be downloaded to a temporary location.")
     download.dir <- tempdir()
   }
 
-  rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
   rtools <- paste(
     "https://github.com",
     "r-windows/rtools-installer/releases/download/2022-02-06/rtools40-x86_64.exe",
     sep = "/"
   )
+  rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
 
-  if (getRversion() < "4.0" || getRversion() >= "4.2")
-    ..installSoftware(rexe, download.dir, ...)
+  tryCatch({
+    regkeys <- readRegistry("SOFTWARE\\R-core", maxdepth = 3)
+  },
+  error = function(e) {
+    warning(conditionMessage(e), call. = FALSE)
+    stop("Registry keys for 'R-core' are missing or could not be accessed",
+         call. = FALSE)
+  })
 
-  if (!dir.exists("C:/rtools40"))
-    ..installSoftware(rtools, download.dir, ...)
+  noCompatVersionReg <-
+    function(key) { !any(grepl("^4\\.[0-1]", names(regkeys[[key]]))) }
+
+  if ((getRversion() < "4.0" || getRversion() >= "4.2") &&
+      (noCompatVersionReg("R") || noCompatVersionReg("R64")))
+    ..winInstallSoftware(rexe, download.dir, verbose)
+
+  if (is.null(regkeys$Rtools$`4.0`))
+    ..winInstallSoftware(rtools, download.dir, verbose)
 }
 
 
@@ -645,7 +657,7 @@ gtkroot <- function() {
 
 
 
-..installSoftware <- function(url, dest, ...) {
+..winInstallSoftware <- function(url, dest, verbose) {
   stopifnot(.onWindows())
   softname <- basename(url)
   ans <- winDialog("yesno", sprintf("Install %s?", softname))
@@ -660,7 +672,7 @@ gtkroot <- function() {
     file.path(dest, softname)
   }
   else {
-    .downloadArchive(url, dest, ...)
+    .downloadArchive(url, dest, quiet = !verbose)
   }
 
   tryCatch({

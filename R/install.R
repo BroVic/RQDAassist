@@ -40,7 +40,13 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
 {
   type <- .validateArgs(type, verbose)
   .startupPrompt(type)
-  .checkBuildReadiness(verbose)
+
+  if (!.checkBuildReadiness(verbose))
+    stop(.report(FALSE)$incompt)
+
+  if (isFALSE(.usingCompatibleRversion()))
+    return(invisible())
+
   cranBinaries <- "igraph"
   amiss <- !.pkgExists(cranBinaries)
 
@@ -129,12 +135,10 @@ install_rgtk2_and_deps <-
   function(type = c("binary", "source"), verbose = FALSE)
   {
     type <- .validateArgs(type, verbose)
-    .checkBuildReadiness(verbose)
     tmpdir <- tempdir()
-    rgtk2 <- "RGtk2"
 
     if (.onWindows()) {
-      .jobMessage("Check for the Gtk distribution", verbose)
+      .jobMessage("Checking for the Gtk distribution", verbose)
 
       if (dir.exists(gtkroot())) {
         cat("found\n")
@@ -156,27 +160,34 @@ install_rgtk2_and_deps <-
           sprintf("https://download.gnome.org/binaries/%s/gtk+/2.22", arch)
         gtk.path <- paste(gtkarch.dir, gtkarch, sep = "/")
 
-        .jobMessage("Download the GTK distribution", verbose)
         tryCatch({
-          gtkzip <- .downloadArchive(gtk.path, tmpdir, quiet = !verbose)
+          .jobMessage("Downloading the GTK distribution", verbose)
+          gtkzip <-
+            .downloadArchive(gtk.path, tmpdir, quiet = !verbose)
           .reportSuccess()
         }, error = function(e) .terminateOnError(e))
 
-        .jobMessage("Install the GTK distribution to 'C:\\'", verbose)
         tryCatch({
+          .jobMessage("Installing the GTK distribution to 'C:\\'", verbose)
+
           if (!length(unzip(gtkzip, exdir = gtkroot())))
             stop(.extractionFailMessage("GTK distribution"))
 
           file.remove(gtkzip)
           .reportSuccess()
         }, error = function(e) .terminateOnError(e))
+
       }
 
+      if (!.checkBuildReadiness(verbose))
+        stop(.report(FALSE)$incompat)
+
       .setGtkEnvironmentVariable()
+      rgtk2 <- "RGtk2"
 
       if (!.pkgExists(rgtk2)) {
         if (type == "binary") {
-          .jobMessage("Install binary build of RGtk2", verbose)
+          .jobMessage("Installing binary build of RGtk2", verbose)
 
           tryCatch({
             install.packages(
@@ -200,7 +211,7 @@ install_rgtk2_and_deps <-
             file.path(.cranIndex(),
                       "src/contrib/Archive/RGtk2/RGtk2_2.20.36.3.tar.gz")
 
-          .jobMessage("Download RGtk2 archive", verbose)
+          .jobMessage("Downloading RGtk2 archive", verbose)
           tryCatch({
             rtar <- .downloadArchive(rgtk2.cran, tmpdir, quiet = !verbose)
             .reportSuccess()
@@ -208,7 +219,7 @@ install_rgtk2_and_deps <-
           error = function(e)
             .terminateOnError(e))
 
-          .jobMessage("Extract RGtk2 archive", verbose)
+          .jobMessage("Extracting RGtk2 archive", verbose)
           tryCatch({
             if (untar(rtar, exdir = tmpdir, verbose = verbose) != 0L)
               stop(.extractionFailMessage(rgtk2))
@@ -223,7 +234,7 @@ install_rgtk2_and_deps <-
           # prevent attempts at loading the package, which could fail due to the
           # absence of Gtk+ binaries within the package at the time of
           # installation.
-          .jobMessage("Install RGtk2", verbose)
+          .jobMessage("Installing RGtk2", verbose)
           tryCatch({
             devtools::install(
               pkg = file.path(tmpdir, rgtk2),
@@ -248,24 +259,21 @@ install_rgtk2_and_deps <-
         stop("RGtk2 was not installed")
 
       dir.create(.pkgLocalGtkPath(), recursive = TRUE)
-      .jobMessage("Copy Gtk+ to RGtk2", verbose)
+      .jobMessage("Copying Gtk+ to RGtk2", verbose)
 
       tryCatch({
-        successes <- vapply(
-          list.files(gtkroot(), full.names = TRUE),
-          file.copy,
-          logical(1),
-          to = .pkgLocalGtkPath(),
-          recursive = TRUE
-        )
+        successes <-
+          file.copy(list.files(gtkroot(), full.names = TRUE),
+                    to = .pkgLocalGtkPath(),
+                    recursive = TRUE)
 
         if (!all(successes))
-          stop(call. = FALSE)
+          stop("Gtk+ was not properly copied to RGtk2", call. = FALSE)
 
         .reportSuccess()
       },
       error = function(e) {
-        warning("Gtk+ was not properly copied to RGtk2", call. = FALSE)
+        unlink(dirname(.pkgLocalGtkPath()), force = TRUE, recursive = TRUE)
         .terminateOnError(e)
       })
 
@@ -350,26 +358,35 @@ install_rgtk2_and_deps <-
 .checkBuildReadiness <- function(verbose)
 {
   if (!.onWindows())
-    return()
+    return(TRUE)
 
-  if (isFALSE(.checkBuildTools(verbose)) || isFALSE(.checkRversionCompat()))
+  notready <- function() {
+    isFALSE(.checkBuildTools(verbose)) ||
+      isFALSE(.checkRversionCompat(verbose))
+  }
+
+  if (notready())
     .installRRtools(verbose)
+
+  !notready()
 }
 
 
 
 
 
-.checkRversionCompat <- function()
+.checkRversionCompat <- function(verbose)
 {
   result <- TRUE
 
-  if (getRversion() >= 4.2) {
-    warning("Current R version is ",
-            sQuote(getRversion()),
-            ". Follow the prompt to install a compatible version ",
-            "or install it manually (version 4.0 or 4.1).",
-            call. = FALSE)
+  if (isFALSE(.usingCompatibleRversion())) {
+    if (verbose)
+      message(
+        "Current R version is ",
+        sQuote(getRversion()),
+        ". Follow the prompt to install a compatible version ",
+        "or install it manually (version 4.0 or 4.1)."
+      )
 
     result <- FALSE
   }
@@ -400,12 +417,16 @@ install_rgtk2_and_deps <-
 
 
 
-
-## Reports end result of a given operation
-.report <- function()
+## Unification of redundant messaging
+.report <- function(newline = TRUE)
 {
-  p <- list(success = "done", failure = "failed")
-  lapply(p, function(x) paste0(x, '\n'))
+  p <-
+    list(success = "done",
+         failure = "failed",
+         incompat = "Compatible version of R and/or Rtools not currently in use")
+
+  nl <- if (newline) "\n" else ""
+  lapply(p, function(x) paste0(x, nl))
 }
 
 
@@ -577,6 +598,8 @@ install_rgtk2_and_deps <-
 
 
 
+
+
 gtkroot <- function() {
   c(GTK_PATH = "C:/GTK")
 }
@@ -635,19 +658,19 @@ gtkroot <- function() {
   },
   error = function(e) {
     warning(conditionMessage(e), call. = FALSE)
-    stop("Registry keys for 'R-core' are missing or could not be accessed",
+    stop("Registry keys in 'R-core' are missing or could not be accessed",
          call. = FALSE)
   })
 
-  noCompatVersionReg <-
+  noCompatibleRegKey <-
     function(key) { !any(grepl("^4\\.[0-1]", names(regkeys[[key]]))) }
-
-  if ((getRversion() < "4.0" || getRversion() >= "4.2") &&
-      (noCompatVersionReg("R") || noCompatVersionReg("R64")))
-    ..winInstallSoftware(rexe, download.dir, verbose)
 
   if (is.null(regkeys$Rtools$`4.0`))
     ..winInstallSoftware(rtools, download.dir, verbose)
+
+  if (isFALSE(.usingCompatibleRversion()) &&
+      (noCompatibleRegKey("R") || noCompatibleRegKey("R64")))
+    ..winInstallSoftware(rexe, download.dir, verbose)
 }
 
 
@@ -663,21 +686,19 @@ gtkroot <- function() {
   ans <- winDialog("yesno", sprintf("Install %s?", softname))
 
   if (ans == "NO") {
-    message("Installation of ", sQuote(softname), " aborted")
-    return(invisible())
+    cat("You aborted the installation of", sQuote(softname), "\n")
+    return()
   }
 
-  installer <- if (basename(dest) == "Downloads" &&
-                   softname %in% list.files(dest)) {
-    file.path(dest, softname)
-  }
-  else {
-    .downloadArchive(url, dest, quiet = !verbose)
-  }
+  installer <-
+    if (basename(dest) == "Downloads" && softname %in% list.files(dest))
+      file.path(dest, softname)
+    else
+      .downloadArchive(url, dest, quiet = !verbose)
 
   tryCatch({
     if (verbose)
-      message("Install ", sQuote(softname), " ... ", appendLF = FALSE)
+      message("Installing ", sQuote(softname), " ... ", appendLF = FALSE)
 
     shell.exec(installer)
     message(.report()$success)
@@ -686,4 +707,14 @@ gtkroot <- function() {
     message(.report()$failure)
     warning(conditionMessage(e), call. = FALSE)
   })
+}
+
+
+
+
+
+
+.usingCompatibleRversion <- function() {
+  v <- getRversion()
+  v >= "4.0" && v < "4.2"
 }

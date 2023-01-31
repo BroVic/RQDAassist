@@ -1,7 +1,7 @@
 #
 # Source file: install.R
 #
-
+# ---- Exported functions ----
 #' Install Archived RQDA
 #'
 #' Install RQDA from CRAN archives and at the same time installing its core
@@ -223,7 +223,7 @@ install_rgtk2_and_deps <-
 
           tryCatch({
             .catJobMessage("Extracting RGtk2 archive", verbose)
-			
+
             if (untar(rtar, exdir = tmpdir, verbose = verbose) != 0L)
               stop(.extractionFailMessage(rgtk2))
 
@@ -239,7 +239,7 @@ install_rgtk2_and_deps <-
           # installation.
           tryCatch({
             .catJobMessage("Installing RGtk2", verbose)
-            
+
 			devtools::install(
               pkg = file.path(tmpdir, rgtk2),
               reload = FALSE,
@@ -265,8 +265,8 @@ install_rgtk2_and_deps <-
 
       tryCatch({
         .catJobMessage("Copying Gtk+ to RGtk2", verbose)
-        
-		successes <-
+
+        successes <-
           file.copy(list.files(gtkroot(), full.names = TRUE),
                     to = .pkgLocalGtkPath(),
                     recursive = TRUE)
@@ -277,7 +277,9 @@ install_rgtk2_and_deps <-
         .catReportSuccess()
       },
       error = function(e) {
-        unlink(dirname(.pkgLocalGtkPath()), force = TRUE, recursive = TRUE)
+        unlink(dirname(.pkgLocalGtkPath()),
+               force = TRUE,
+               recursive = TRUE)
         .terminateOnError(e)
       })
 
@@ -319,46 +321,7 @@ install_rgtk2_and_deps <-
 
 
 
-
-
-# Prompts the user - only once after package is loaded (see zzz.R)
-#' @importFrom assertthat is.string
-.startupPrompt <- function(inst.type)
-{
-  if (!interactive() || inst.type == 'binary')
-    return(invisible())
-
-  if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
-    Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
-    cont <- "Continue (Y/n)? "
-    prompt <- paste("Source installation will take some time.", cont)
-    readline_lowcase <- function() { tolower(readline(prompt)) }
-    ans <- readline_lowcase()
-
-    repeat {
-      if (ans == "")
-        ans <- "y"
-
-      pos <- regexpr("^(y(es)?|no?)$", ans)
-
-      if (pos > 0)
-        break
-
-      prompt <- paste("Invalid input.", cont)
-      ans <- readline_lowcase()
-    }
-
-    ans <- substr(ans, pos - 1, pos)
-
-    if (ans == 'n')
-      return(invisible())
-  }
-}
-
-
-
-
-
+# ---- Build system compatibility ----
 .checkBuildReadiness <- function(verbose)
 {
   if (!.onWindows())
@@ -426,218 +389,8 @@ install_rgtk2_and_deps <-
 
 
 
-## Unification of redundant messaging
-.report <- function(newline = TRUE)
-{
-  p <-
-    list(success = "done",
-         failure = "failed",
-         incompat = "Compatible version of R and/or Rtools not currently in use")
 
-  nl <- if (newline) "\n" else ""
-  lapply(p, function(x) paste0(x, nl))
-}
-
-
-
-
-
-
-.onWindows <- function() {
-  .Platform$OS.type == "windows"
-}
-
-
-
-
-
-## Provides the index to CRAN directory
-.cranIndex <- function() {
-  "https://cran.r-project.org"
-}
-
-
-
-
-
-
-# Where Gtk+ is saved locally within the RGtk2 library
-.pkgLocalGtkPath <- function() {
-  pkgpath <- system.file(package = "RGtk2")
-  file.path(pkgpath, 'gtk', .Platform$r_arch)
-}
-
-
-
-
-
-
-
-# Custom error conditions for RGtk2
-.abortRgtk2 <- function() {
-  msg <- sprintf("Could not install RGtk2. Try doing so in the R console")
-  stop(msg, call. = FALSE)
-}
-
-
-
-
-
-.validateInstallType <- function(type)
-{
-  tryCatch(match.arg(type, c("binary", "source")),
-           error = function(e)
-             stop(conditionMessage(e), call. = FALSE))
-}
-
-
-
-
-
-
-# Checks the two arguments passed onto the installation functions.
-# If the checks are passed, returns the value of 'type' (does partial matching)
-#' @importFrom assertthat is.string
-.validateArgs <- function(type, verbose)
-{
-  if (!is.logical(verbose))
-    stop("'verbose' must be logical vector")
-
-  if (length(verbose) > 1L) {
-    verbose <- verbose[1]
-    warning("First element of verbose was taken and the rest ignored")
-  }
-
-  .validateInstallType(type)
-}
-
-
-
-
-
-
-# Wrapper for `download.file` essentally for building download paths and
-# various settings
-#
-# @param url The URL of the file to be downloaded.
-# @param destdir The directory where the file is to be saved.
-# @param ... Additional arguments passed to `download.file`.
-#
-#' @importFrom utils download.file
-.downloadArchive <- function(url, destdir, ...)
-{
-  stopifnot(dir.exists(destdir))
-  fOpts <- options(internet.info = 100)
-
-  if(!grepl("^https?\\:\\/\\/", url))
-    stop("Invalid URL scheme")
-
-  archname <- basename(url)
-  destfile <- file.path(destdir, archname)
-  dwn.meth <- "auto"
-
-  if (.onWindows() && capabilities(curl <- 'libcurl'))
-    dwn.meth <- curl
-
-  tryCatch({
-    res <- download.file(url, destfile, method = dwn.meth, ...)
-  }, error = function(e) { # do nothing
-  }, finally = options(fOpts))
-
-  if(res != 0L)
-    stop("Could not download ", sQuote(archname))
-
-  destfile
-}
-
-
-
-
-
-
-.pkgExists <- function(pkg = character())
-{
-  stopifnot(is.character(pkg))
-  all(pkg %in% .packages(all.available = TRUE))
-}
-
-
-
-
-
-#' @importFrom assertthat is.string
-.extractionFailMessage <- function(str)
-{
-  stopifnot(assertthat::is.string(str))
-  sprintf("Extraction of %s failed")
-}
-
-
-
-
-
-.terminateOnError <- function(err)
-{
-  stopifnot(inherits(err, "simpleError"))
-  cat(.report()$failure)
-  stop(conditionMessage(err), call. = FALSE)
-}
-
-
-
-
-
-.catReportSuccess <- function()
-{
-  cat(.report()$success)
-}
-
-
-
-
-
-#' @importFrom assertthat is.string
-.catJobMessage <- function(str, ...)
-{
-  stopifnot(assertthat::is.string(str))
-  cat(str, " ... ")
-}
-
-
-
-
-
-
-
-gtkroot <- function() {
-  c(GTK_PATH = "C:/GTK")
-}
-
-
-
-
-# ToDO: Make permanent between sessions
-.setGtkEnvironmentVariable <- function(silent = FALSE) {
-  gtkpath <- gtkroot()
-  envarname <- names(gtkpath)
-
-  envarunset <- function() { is.null(Sys.getenv(envarname)) }
-
-  if (envarunset()) {
-    Sys.setenv(GTK_PATH = gtkpath)
-
-    if (!silent && !envarunset())
-      cat(sprintf("Environment variable %s was set\n", sQuote(envarname)))
-  }
-
-  isFALSE(envarunset())
-}
-
-
-
-
-
-#' @importFrom utils readRegistry
+#' @import utils
 .installRRtools <- function(verbose)
 {
   if (!interactive()) {
@@ -702,8 +455,8 @@ gtkroot <- function() {
   installer <-
     if (basename(dest) == "Downloads" && softname %in% list.files(dest))
       file.path(dest, softname)
-    else
-      .downloadArchive(url, dest, quiet = !verbose)
+  else
+    .downloadArchive(url, dest, quiet = !verbose)
 
   tryCatch({
     if (verbose)
@@ -722,7 +475,6 @@ gtkroot <- function() {
 
 
 
-
 .usingCompatibleRversion <- function() {
   v <- getRversion()
   v >= "4.0" && v < "4.2"
@@ -733,52 +485,303 @@ gtkroot <- function() {
 
 
 
-.installRRtools <- function(verbose)
+# ---- Unified messaging ----
+.report <- function(newline = TRUE)
 {
-  download.dir <- file.path(Sys.getenv("HOME"), "Downloads")
+  p <-
+    list(success = "done",
+         failure = "failed",
+         incompat = "Compatible version of R and/or Rtools not currently in use")
 
-  if (!dir.exists(download.dir)) {
-    message(
-      "There is no folder named ",
-      sQuote(basename(download.dir)),
-      ". Installer(s) will be downloaded to a temporary location."
-    )
-    download.dir <- tempdir()
+  nl <- if (newline) "\n" else ""
+  lapply(p, function(x) paste0(x, nl))
+}
+
+
+
+
+
+
+.onWindows <- function() {
+  .Platform$OS.type == "windows"
+}
+
+
+
+
+
+
+
+# Custom error conditions for RGtk2
+.abortRgtk2 <- function() {
+  msg <- sprintf("Could not install RGtk2. Try doing so in the R console")
+  stop(msg, call. = FALSE)
+}
+
+
+
+
+
+.validateInstallType <- function(type)
+{
+  tryCatch(match.arg(type, c("binary", "source")),
+           error = function(e)
+             stop(conditionMessage(e), call. = FALSE))
+}
+
+
+
+
+
+
+# Checks the two arguments passed onto the installation functions.
+# If the checks are passed, returns the value of 'type' (does partial matching)
+#' @importFrom assertthat is.string
+.validateArgs <- function(type, verbose)
+{
+  if (!is.logical(verbose))
+    stop("'verbose' must be logical vector")
+
+  if (length(verbose) > 1L) {
+    verbose <- verbose[1]
+    warning("First element of verbose was taken and the rest ignored")
   }
 
-  installSoftware <- function(softurl) {
-    if (basename(download.dir) == "Downloads") {
-      softname <- basename(softurl)
+  .validateInstallType(type)
+}
 
-      installer <- if (softname %in% list.files(download.dir))
-        file.path(download.dir, softname)
-      else
-        .downloadArchive(softurl, download.dir, quiet = !verbose)
+
+
+
+
+#' @importFrom assertthat is.string
+.extractionFailMessage <- function(str)
+{
+  stopifnot(assertthat::is.string(str))
+  sprintf("Extraction of %s failed")
+}
+
+
+
+
+
+.terminateOnError <- function(err)
+{
+  stopifnot(inherits(err, "simpleError"))
+  cat(.report()$failure)
+  stop(conditionMessage(err), call. = FALSE)
+}
+
+
+
+
+
+.catReportSuccess <- function()
+{
+  cat(.report()$success)
+}
+
+
+
+
+
+#' @importFrom assertthat is.string
+.catJobMessage <- function(str, ...)
+{
+  stopifnot(assertthat::is.string(str))
+  cat(str, " ... ")
+}
+
+
+
+
+# ---- Resource locators ----
+## Provides the index to CRAN directory
+.cranIndex <- function() {
+  "https://cran.r-project.org"
+}
+
+
+
+
+
+
+# Where Gtk+ is saved locally within the RGtk2 library
+.pkgLocalGtkPath <- function() {
+  pkgpath <- system.file(package = "RGtk2")
+  file.path(pkgpath, 'gtk', .Platform$r_arch)
+}
+
+
+
+
+
+
+# Wrapper for `download.file` essentally for building download paths and
+# various settings
+#
+# @param url The URL of the file to be downloaded.
+# @param destdir The directory where the file is to be saved.
+# @param ... Additional arguments passed to `download.file`.
+#
+#' @importFrom utils download.file
+.downloadArchive <- function(url, destdir, ...)
+{
+  stopifnot(dir.exists(destdir))
+  fOpts <- options(internet.info = 100)
+
+  if(!grepl("^https?\\:\\/\\/", url))
+    stop("Invalid URL scheme")
+
+  archname <- basename(url)
+  destfile <- file.path(destdir, archname)
+  dwn.meth <- "auto"
+
+  if (.onWindows() && capabilities(curl <- 'libcurl'))
+    dwn.meth <- curl
+
+  tryCatch({
+    res <- download.file(url, destfile, method = dwn.meth, ...)
+  }, error = function(e) { # do nothing
+  }, finally = options(fOpts))
+
+  if(res != 0L)
+    stop("Could not download ", sQuote(archname))
+
+  destfile
+}
+
+
+
+
+
+
+.pkgExists <- function(pkg = character())
+{
+  stopifnot(is.character(pkg))
+  all(pkg %in% .packages(all.available = TRUE))
+}
+
+
+
+
+
+
+
+gtkroot <- function() {
+  c(GTK_PATH = "C:/GTK")
+}
+
+
+
+
+# ToDO: Make permanent between sessions
+.setGtkEnvironmentVariable <- function(silent = FALSE) {
+  gtkpath <- gtkroot()
+  envarname <- names(gtkpath)
+
+  envarunset <- function() { is.null(Sys.getenv(envarname)) }
+
+  if (envarunset()) {
+    Sys.setenv(GTK_PATH = gtkpath)
+
+    if (!silent && !envarunset())
+      cat(sprintf("Environment variable %s was set\n", sQuote(envarname)))
+  }
+
+  isFALSE(envarunset())
+}
+
+
+
+
+
+
+# ---- Miscellaneous helpers ----
+
+# Prompts the user - only once after package is loaded (see zzz.R)
+#' @importFrom assertthat is.string
+.startupPrompt <- function(inst.type)
+{
+  if (!interactive() || inst.type == 'binary')
+    return(invisible())
+
+  if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
+    Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
+    cont <- "Continue (Y/n)? "
+    prompt <- paste("Source installation will take some time.", cont)
+    readline_lowcase <- function() { tolower(readline(prompt)) }
+    ans <- readline_lowcase()
+
+    repeat {
+      if (ans == "")
+        ans <- "y"
+
+      pos <- regexpr("^(y(es)?|no?)$", ans)
+
+      if (pos > 0)
+        break
+
+      prompt <- paste("Invalid input.", cont)
+      ans <- readline_lowcase()
     }
 
-    tryCatch({
-      if (verbose)
-        message("Install ", sQuote(softname), " ... ", appendLF = FALSE)
+    ans <- substr(ans, pos - 1, pos)
 
-      shell.exec(installer)
-      message(.report()$success)
-    },
-    error = function(e) {
-      message(.report()$failure)
-      warning(conditionMessage(e), call. = FALSE)
-    })
+    if (ans == 'n')
+      return(invisible())
   }
-
-  rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
-  rtools <- paste(
-    "https://github.com",
-    "r-windows/rtools-installer/releases/download/2022-02-06/rtools40-x86_64.exe",
-    sep = "/"
-  )
-
-  if (getRversion() < "4.0" || getRversion() >= "4.2")
-    installSoftware(rexe)
-
-  if (!dir.exists("C:/rtools40"))
-    installSoftware(rtools)
 }
+
+
+
+
+# .installRRtools <- function(verbose)
+# {
+#   download.dir <- file.path(Sys.getenv("HOME"), "Downloads")
+#
+#   if (!dir.exists(download.dir)) {
+#     message(
+#       "There is no folder named ",
+#       sQuote(basename(download.dir)),
+#       ". Installer(s) will be downloaded to a temporary location."
+#     )
+#     download.dir <- tempdir()
+#   }
+#
+#   installSoftware <- function(softurl) {
+#     if (basename(download.dir) == "Downloads") {
+#       softname <- basename(softurl)
+#
+#       installer <- if (softname %in% list.files(download.dir))
+#         file.path(download.dir, softname)
+#       else
+#         .downloadArchive(softurl, download.dir, quiet = !verbose)
+#     }
+#
+#     tryCatch({
+#       if (verbose)
+#         message("Install ", sQuote(softname), " ... ", appendLF = FALSE)
+#
+#       shell.exec(installer)
+#       message(.report()$success)
+#     },
+#     error = function(e) {
+#       message(.report()$failure)
+#       warning(conditionMessage(e), call. = FALSE)
+#     })
+#   }
+#
+#   rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
+#   rtools <- paste(
+#     "https://github.com",
+#     "r-windows/rtools-installer/releases/download/2022-02-06/rtools40-x86_64.exe",
+#     sep = "/"
+#   )
+#
+#   if (getRversion() < "4.0" || getRversion() >= "4.2")
+#     installSoftware(rexe)
+#
+#   if (!dir.exists("C:/rtools40"))
+#     installSoftware(rtools)
+# }

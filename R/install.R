@@ -432,7 +432,7 @@ install_rgtk2_and_deps <-
     if (basename(dest) == "Downloads" && softname %in% list.files(dest))
       file.path(dest, softname)
     else
-      .downloadArchive(url, dest, quiet = !verbose)
+      .downloadArchive(url, dest, quiet = FALSE)
 
   tryCatch({
     if (verbose)

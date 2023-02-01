@@ -43,11 +43,11 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
   type <- .validateArgs(type, verbose)
   .startupPrompt(type)
 
-  if (!.checkBuildReadiness(verbose))
-    stop(.report(FALSE)$incompt)
-
-  if (isFALSE(.usingCompatibleRversion()))
-    return(invisible())
+  tryCatch(
+    install_rgtk2_and_deps(type, verbose),
+    error = function(e)
+      stop(conditionMessage(e), call. = FALSE)
+  )
 
   cranBinaries <- "igraph"
   amiss <- !.pkgExists(cranBinaries)
@@ -57,8 +57,6 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
                      repos = 'https://cran.rstudio.com',
                      quiet = !verbose,
                      type = "binary")
-
-  install_rgtk2_and_deps(type, verbose)
 
   installArchivedCranPackage <- function(ver, name) {
     if (.pkgExists(name)) {
@@ -181,7 +179,7 @@ install_rgtk2_and_deps <-
 
       }
 
-      if (!.checkBuildReadiness(verbose))
+      if (!.ensureBuildReadiness(verbose))
         stop(.report(FALSE)$incompat)
 
       .setGtkEnvironmentVariable()
@@ -321,15 +319,18 @@ install_rgtk2_and_deps <-
 
 
 
-# ---- Build system compatibility ----
-.checkBuildReadiness <- function(verbose)
+# ---- Compatibility of the build system ----
+
+#' @importFrom devtools has_devel
+.ensureBuildReadiness <- function(verbose)
 {
   if (!.onWindows())
     return(TRUE)
 
   notready <- function() {
-    isFALSE(.checkBuildTools(verbose)) ||
-      isFALSE(.checkRversionCompat(verbose))
+    ready <-
+      has_devel(quiet = !verbose) && .usingCompatibleR(!verbose)
+    isFALSE(ready)
   }
 
   if (notready())
@@ -342,49 +343,23 @@ install_rgtk2_and_deps <-
 
 
 
-.checkRversionCompat <- function(verbose)
-{
-  result <- TRUE
 
-  if (isFALSE(.usingCompatibleRversion())) {
-    if (verbose)
-      message(
-        "Current R version is ",
-        sQuote(getRversion()),
-        ". Follow the prompt to install a compatible version ",
-        "or install it manually (version 4.0 or 4.1)."
-      )
 
-    result <- FALSE
-  }
 
-  result
+
+.usingCompatibleR <- function(quiet = TRUE) {
+  v <- getRversion()
+  R_IsCompatible <- v >= "4.0" && v < "4.2"
+
+  if (!quiet && !R_IsCompatible)
+    message("Incompatible R version (", sQuote(v), ") is in use")
+
+  R_IsCompatible
 }
 
 
 
 
-
-.checkBuildTools <- function(verbose)
-{
-  result <- FALSE
-
-  if (devtools::has_devel(quiet = !verbose))
-    result <- TRUE
-
-  warning(sprintf(
-    paste(
-      "Your system is not ready to build packages.",
-      "Please visit %s to install Rtools40 if automatic installtion fails."
-    ),
-    sQuote(file.path(
-      .cranIndex(), "bin/Rtools/history.html"
-    ))
-  ),
-  call. = FALSE)
-
-  result
-}
 
 
 
@@ -393,6 +368,8 @@ install_rgtk2_and_deps <-
 #' @import utils
 .installRRtools <- function(verbose)
 {
+  stopifnot(.onWindows())
+
   if (!interactive()) {
     message("Automatic installation of compatible versions of R or Rtools ",
             "can only take place during interactive sessions")
@@ -424,14 +401,14 @@ install_rgtk2_and_deps <-
          call. = FALSE)
   })
 
-  noCompatibleRegKey <-
-    function(key) { !any(grepl("^4\\.[0-1]", names(regkeys[[key]]))) }
-
   if (is.null(regkeys$Rtools$`4.0`))
     ..winInstallSoftware(rtools, download.dir, verbose)
 
-  if (isFALSE(.usingCompatibleRversion()) &&
-      (noCompatibleRegKey("R") || noCompatibleRegKey("R64")))
+  noCompatibleRversionKeys <-
+    function(key) { !any(grepl("^4\\.[0-1]", names(regkeys[[key]]))) }
+
+  if (isFALSE(.usingCompatibleR()) &&
+      (noCompatibleRversionKeys("R") || noCompatibleRversionKeys("R64")))
     ..winInstallSoftware(rexe, download.dir, verbose)
 }
 
@@ -443,7 +420,6 @@ install_rgtk2_and_deps <-
 
 
 ..winInstallSoftware <- function(url, dest, verbose) {
-  stopifnot(.onWindows())
   softname <- basename(url)
   ans <- winDialog("yesno", sprintf("Install %s?", softname))
 
@@ -455,14 +431,16 @@ install_rgtk2_and_deps <-
   installer <-
     if (basename(dest) == "Downloads" && softname %in% list.files(dest))
       file.path(dest, softname)
-  else
-    .downloadArchive(url, dest, quiet = !verbose)
+    else
+      .downloadArchive(url, dest, quiet = !verbose)
 
   tryCatch({
     if (verbose)
       message("Installing ", sQuote(softname), " ... ", appendLF = FALSE)
 
-    shell.exec(installer)
+    cmd <- paste("START", installer)
+    shell(cmd, shell = "C:\\WINDOWS\\system32\\cmd.exe")
+    readline("Press <ENTER> to continue... ")
     message(.report()$success)
   },
   error = function(e) {
@@ -475,10 +453,7 @@ install_rgtk2_and_deps <-
 
 
 
-.usingCompatibleRversion <- function() {
-  v <- getRversion()
-  v >= "4.0" && v < "4.2"
-}
+
 
 
 

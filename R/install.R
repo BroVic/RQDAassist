@@ -163,7 +163,7 @@ install_rgtk2_and_deps <-
         tryCatch({
           .catJobMessage("Downloading the GTK distribution", verbose)
           gtkzip <-
-            .downloadArchive(gtk.path, tmpdir, quiet = !verbose)
+            .downloadArchives(gtk.path, tmpdir, quiet = !verbose)
           .catReportSuccess()
         }, error = function(e) .terminateOnError(e))
 
@@ -213,7 +213,7 @@ install_rgtk2_and_deps <-
 
           tryCatch({
             .catJobMessage("Downloading RGtk2 archive", verbose)
-            rtar <- .downloadArchive(rgtk2.cran, tmpdir, quiet = !verbose)
+            rtar <- .downloadArchives(rgtk2.cran, tmpdir, quiet = !verbose)
             .catReportSuccess()
           },
           error = function(e)
@@ -368,6 +368,26 @@ install_rgtk2_and_deps <-
 #' @import utils
 .installRRtools <- function(verbose)
 {
+  ..winInstallSoftware <- function(path) {
+    tryCatch({
+      if (verbose)
+        cat("Installing ", sQuote(basename(path)), " ... ")
+
+      shell(paste("START", path))
+      readline("Press <ENTER> to continue... ")
+
+      if (verbose) message(.report()$success)
+    },
+    error = function(e) {
+      if (verbose) message(.report()$failure)
+      warning(conditionMessage(e), call. = FALSE)
+    })
+  }
+
+  noCompatibleRversionKeys <- function(key) {
+      !any(grepl("^4\\.[0-1]", names(regkeys[[key]])))
+  }
+
   stopifnot(.onWindows())
 
   if (!interactive()) {
@@ -376,82 +396,39 @@ install_rgtk2_and_deps <-
     return()
   }
 
-  download.dir <- file.path(Sys.getenv("HOME"), "Downloads")
-
-  if (!dir.exists(download.dir)) {
-    message("There is no folder named ",
-            sQuote(basename(download.dir)),
-            ". Installer(s) will be downloaded to a temporary location.")
-    download.dir <- tempdir()
-  }
-
-  rtools <- paste(
-    "https://github.com",
-    "r-windows/rtools-installer/releases/download/2022-02-06/rtools40-x86_64.exe",
-    sep = "/"
-  )
-  rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
-
   tryCatch({
     regkeys <- readRegistry("SOFTWARE\\R-core", maxdepth = 3)
   },
   error = function(e) {
     warning(conditionMessage(e), call. = FALSE)
-    stop("Registry keys in 'R-core' are missing or could not be accessed",
+    stop("Registry keys in 'R-core' missing or could not be accessed",
          call. = FALSE)
   })
 
-  if (is.null(regkeys$Rtools$`4.0`))
-    ..winInstallSoftware(rtools, download.dir, verbose)
+  urls <- files <- c()
 
-  noCompatibleRversionKeys <-
-    function(key) { !any(grepl("^4\\.[0-1]", names(regkeys[[key]]))) }
-
-  if (isFALSE(.usingCompatibleR()) &&
-      (noCompatibleRversionKeys("R") || noCompatibleRversionKeys("R64")))
-    ..winInstallSoftware(rexe, download.dir, verbose)
-}
-
-
-
-
-
-
-
-
-..winInstallSoftware <- function(url, dest, verbose) {
-  softname <- basename(url)
-  ans <- winDialog("yesno", sprintf("Install %s?", softname))
-
-  if (ans == "NO") {
-    cat("You aborted the installation of", sQuote(softname), "\n")
-    return()
+  if (is.null(regkeys$Rtools$`4.0`)) {
+    urls <-
+    "https://github.com/r-windows/rtools-installer/releases/download/2022-02-06"
+    files <- "rtools40-x86_64.exe"
   }
 
-  installer <-
-    if (basename(dest) == "Downloads" && softname %in% list.files(dest))
-      file.path(dest, softname)
-    else
-      .downloadArchive(url, dest, quiet = FALSE)
+  if (isFALSE(.usingCompatibleR()) &&
+      (noCompatibleRversionKeys("R") || noCompatibleRversionKeys("R64"))) {
+    rUrl <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3")
+    urls <- c(urls, rUrl)
+    files <- c(files, "R-4.1.3-win.exe")
+  }
 
-  tryCatch({
-    if (verbose)
-      message("Installing ", sQuote(softname), " ... ", appendLF = FALSE)
+  downdir <- file.path(Sys.getenv("HOME"), "Downloads")
 
-    cmd <- paste("START", installer)
-    shell(cmd, shell = "C:\\WINDOWS\\system32\\cmd.exe")
-    readline("Press <ENTER> to continue... ")
-    message(.report()$success)
-  },
-  error = function(e) {
-    message(.report()$failure)
-    warning(conditionMessage(e), call. = FALSE)
-  })
+  if (!dir.exists(downdir))
+    downdir <- tempdir()
+
+  durls <- paste(urls, files, sep = "/")
+  dpaths <- .downloadArchives(durls, downdir, quiet = FALSE)
+  invisible(lapply(dpaths, ..winInstallSoftware))
 }
-
-
-
-
 
 
 
@@ -595,35 +572,44 @@ install_rgtk2_and_deps <-
 # Wrapper for `download.file` essentally for building download paths and
 # various settings
 #
-# @param url The URL of the file to be downloaded.
+# @param urls The URL of the file to be downloaded.
 # @param destdir The directory where the file is to be saved.
 # @param ... Additional arguments passed to `download.file`.
 #
 #' @importFrom utils download.file
-.downloadArchive <- function(url, destdir, ...)
+.downloadArchives <- function(urls, destdir, ...)
 {
   stopifnot(dir.exists(destdir))
-  fOpts <- options(internet.info = 100)
-
-  if(!grepl("^https?\\:\\/\\/", url))
-    stop("Invalid URL scheme")
-
-  archname <- basename(url)
-  destfile <- file.path(destdir, archname)
-  dwn.meth <- "auto"
-
-  if (.onWindows() && capabilities(curl <- 'libcurl'))
-    dwn.meth <- curl
+  archnames <- vapply(urls, basename, character(1))
+  downfiles <- paste(tempdir(), archnames, sep = "/")
 
   tryCatch({
-    res <- download.file(url, destfile, method = dwn.meth, ...)
-  }, error = function(e) { # do nothing
-  }, finally = options(fOpts))
+    oldOpts <- options(internet.info = 100, timeout = 300)
+    method <- "auto"
 
-  if(res != 0L)
-    stop("Could not download ", sQuote(archname))
+    if (.onWindows() && capabilities(curl <- "libcurl"))
+      method <- curl
 
-  destfile
+    returncode <-
+      download.file(urls, downfiles, method = method, cacheOK = FALSE, ...)
+
+    if(0L != returncode)
+      stop("Internal call to 'download.file()' for ",
+           sQuote(paste(archnames, collapse = ", ")),
+           " failed with code ",
+           returncode)
+  },
+  error = function(e) {
+    stop(e)
+  },
+  finally = options(oldOpts))
+
+  destfiles <- paste(destdir, archnames, sep = "/")
+
+  if (all(file.rename(downfiles, destfiles)))
+    return(destfiles)
+
+  stop("There was a problem moving the downloaded file(s) from tempdir()")
 }
 
 
@@ -707,56 +693,3 @@ gtkroot <- function() {
       return(invisible())
   }
 }
-
-
-
-
-# .installRRtools <- function(verbose)
-# {
-#   download.dir <- file.path(Sys.getenv("HOME"), "Downloads")
-#
-#   if (!dir.exists(download.dir)) {
-#     message(
-#       "There is no folder named ",
-#       sQuote(basename(download.dir)),
-#       ". Installer(s) will be downloaded to a temporary location."
-#     )
-#     download.dir <- tempdir()
-#   }
-#
-#   installSoftware <- function(softurl) {
-#     if (basename(download.dir) == "Downloads") {
-#       softname <- basename(softurl)
-#
-#       installer <- if (softname %in% list.files(download.dir))
-#         file.path(download.dir, softname)
-#       else
-#         .downloadArchive(softurl, download.dir, quiet = !verbose)
-#     }
-#
-#     tryCatch({
-#       if (verbose)
-#         message("Install ", sQuote(softname), " ... ", appendLF = FALSE)
-#
-#       shell.exec(installer)
-#       message(.report()$success)
-#     },
-#     error = function(e) {
-#       message(.report()$failure)
-#       warning(conditionMessage(e), call. = FALSE)
-#     })
-#   }
-#
-#   rexe <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3/R-4.1.3-win.exe")
-#   rtools <- paste(
-#     "https://github.com",
-#     "r-windows/rtools-installer/releases/download/2022-02-06/rtools40-x86_64.exe",
-#     sep = "/"
-#   )
-#
-#   if (getRversion() < "4.0" || getRversion() >= "4.2")
-#     installSoftware(rexe)
-#
-#   if (!dir.exists("C:/rtools40"))
-#     installSoftware(rtools)
-# }

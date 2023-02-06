@@ -101,7 +101,15 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
       .catReportSuccess()
     },
     error = function(e) {
-      .terminateOnError(e)
+      .terminateOnCondition(e)
+    },
+    warning = function(w) {
+      warnmsg <- conditionMessage(w)
+
+      if (endsWith(warnmsg, "had non-zero exit status"))
+        .terminateOnCondition(w)
+      else
+        warning(warnmsg, call. = FALSE)
     })
   }
 
@@ -165,7 +173,7 @@ install_rgtk2_and_deps <-
           gtkzip <-
             .downloadArchives(gtk.path, tmpdir, quiet = !verbose)
           .catReportSuccess()
-        }, error = function(e) .terminateOnError(e))
+        }, error = function(e) .terminateOnCondition(e))
 
         tryCatch({
           .catJobMessage("Installing the GTK distribution to 'C:\\'", verbose)
@@ -175,7 +183,7 @@ install_rgtk2_and_deps <-
 
           file.remove(gtkzip)
           .catReportSuccess()
-        }, error = function(e) .terminateOnError(e))
+        }, error = function(e) .terminateOnCondition(e))
 
       }
 
@@ -200,7 +208,7 @@ install_rgtk2_and_deps <-
             .catReportSuccess()
           },
           error = function(e) {
-            .terminateOnError(e)
+            .terminateOnCondition(e)
           },
           warning = function(w) {
           })
@@ -217,7 +225,7 @@ install_rgtk2_and_deps <-
             .catReportSuccess()
           },
           error = function(e)
-            .terminateOnError(e))
+            .terminateOnCondition(e))
 
           tryCatch({
             .catJobMessage("Extracting RGtk2 archive", verbose)
@@ -229,7 +237,7 @@ install_rgtk2_and_deps <-
             .catReportSuccess()
           },
           error = function(e)
-            .terminateOnError(e))
+            .terminateOnCondition(e))
 
           # RGtk2 will be built from source. We use the option --no-test-load to
           # prevent attempts at loading the package, which could fail due to the
@@ -249,7 +257,7 @@ install_rgtk2_and_deps <-
             .catReportSuccess()
           },
           error = function(e)
-            .terminateOnError(e))
+            .terminateOnCondition(e))
         }
       }
 
@@ -278,7 +286,7 @@ install_rgtk2_and_deps <-
         unlink(dirname(.pkgLocalGtkPath()),
                force = TRUE,
                recursive = TRUE)
-        .terminateOnError(e)
+        .terminateOnCondition(e)
       })
 
     }
@@ -528,11 +536,11 @@ install_rgtk2_and_deps <-
 
 
 
-.terminateOnError <- function(err)
+.terminateOnCondition <- function(cond)
 {
-  stopifnot(inherits(err, "simpleError"))
+  stopifnot(inherits(cond, "condition"))
   cat(.report()$failure)
-  stop(conditionMessage(err), call. = FALSE)
+  stop(conditionMessage(cond), call. = FALSE)
 }
 
 

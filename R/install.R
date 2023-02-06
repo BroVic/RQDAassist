@@ -675,13 +675,13 @@ gtkroot <- function() {
 
 # ToDO: Make permanent between sessions
 .setGtkEnvironmentVariable <- function(silent = FALSE) {
-  gtkpath <- gtkroot()
-  envarname <- names(gtkpath)
+  envarunset <- function()
+    identical(Sys.getenv(envarname), "")
 
-  envarunset <- function() { is.null(Sys.getenv(envarname)) }
+  envarname <- names(gtkroot())
 
   if (envarunset()) {
-    Sys.setenv(GTK_PATH = gtkpath)
+    Sys.setenv(GTK_PATH = gtkroot())
 
     if (!silent && !envarunset())
       cat(sprintf("Environment variable %s was set\n", sQuote(envarname)))

@@ -406,7 +406,9 @@ install_rgtk2_and_deps <-
   })
 
   urls <- files <- c()
+  installerIsAvailable <- function(x, expected.length) {
 
+  }
   if (is.null(regkeys$Rtools$`4.0`)) {
     urls <-
     "https://github.com/r-windows/rtools-installer/releases/download/2022-02-06"
@@ -426,7 +428,16 @@ install_rgtk2_and_deps <-
     downdir <- tempdir()
 
   durls <- paste(urls, files, sep = "/")
-  dpaths <- .downloadArchives(durls, downdir, quiet = FALSE)
+  dpaths <-
+    suppressWarnings(
+      .downloadArchives(
+        durls,
+        downdir,
+        timeout = Inf,
+        quiet = FALSE,
+        mode = "wb"
+      )
+    )
   invisible(lapply(dpaths, ..winInstallSoftware))
 }
 
@@ -577,39 +588,65 @@ install_rgtk2_and_deps <-
 # @param ... Additional arguments passed to `download.file`.
 #
 #' @importFrom utils download.file
-.downloadArchives <- function(urls, destdir, ...)
+.downloadArchives <- function(urls, destdir, timeout = 300, ...)
 {
   stopifnot(dir.exists(destdir))
   archnames <- vapply(urls, basename, character(1))
-  downfiles <- paste(tempdir(), archnames, sep = "/")
+  downpaths <- paste(tempdir(), archnames, sep = "/")
 
   tryCatch({
-    oldOpts <- options(internet.info = 100, timeout = 300)
-    method <- "auto"
+    oldOpts <- options(internet.info = 100, timeout = timeout)
+    downloadMethod <- "auto"
 
     if (.onWindows() && capabilities(curl <- "libcurl"))
-      method <- curl
+      downloadMethod <- curl
 
-    returncode <-
-      download.file(urls, downfiles, method = method, cacheOK = FALSE, ...)
+    arglist <- c(list(...), method = downloadMethod)
+    returncodes <-
+      .mapply(download.file, dots = list(urls, downpaths), MoreArgs = arglist)
+    returncodes <- unlist(returncodes)
+    successes <- returncodes == 0
 
-    if(0L != returncode)
-      stop("Internal call to 'download.file()' for ",
-           sQuote(paste(archnames, collapse = ", ")),
-           " failed with code ",
-           returncode)
+    if(sum(successes) != length(successes)) {
+      fn <- function(x) paste(x[!successes], collapse = ", ")
+      archs <- fn(archnames)
+      codes <- fn(returncodes)
+      errtemplate <- "Call to 'download.file()' for %s failed with code %s"
+      errmsg <- sprintf(errtemplate, sQuote(archs), codes)
+
+      if (sum(!successes) > 1L)
+        errmsg <- paste0(errmsg, ", respectively")
+
+      stop(errmsg)
+    }
   },
   error = function(e) {
     stop(e)
   },
   finally = options(oldOpts))
 
-  destfiles <- paste(destdir, archnames, sep = "/")
+  destpaths <- paste(destdir, archnames, sep = "/")
+  notmoved <- !file.rename(downpaths, destpaths)
 
-  if (all(file.rename(downfiles, destfiles)))
-    return(destfiles)
+  if (any(notmoved)) {
+    templocationMsg <-
+      .mapply(function(a, b) { sprintf("* %s: %s", a, b) },
+              dots = list(archnames[notmoved], downpaths[notmoved]))
 
-  stop("There was a problem moving the downloaded file(s) from tempdir()")
+    templocationMsg <- paste(unlist(templocationMsg), collapse = "\n")
+
+    moveErrMsg <-
+      paste(
+        "There was a problem moving the downloaded file(s) from tempdir().",
+        "The software can be copied from this/these location(s):",
+        templocationMsg,
+        sep = "\n"
+      )
+
+    stop(moveErrMsg)
+  }
+
+  destpaths
 }
 
 

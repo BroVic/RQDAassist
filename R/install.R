@@ -32,7 +32,6 @@
 #' # install all from source, verbosely
 #' \dontrun{install("source", TRUE)}
 #'
-#' @importFrom devtools has_devel
 #' @importFrom devtools install_version
 #' @importFrom purrr iwalk
 #' @importFrom utils install.packages
@@ -46,7 +45,7 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
   tryCatch(
     install_rgtk2_and_deps(type, verbose),
     error = function(e)
-      stop(conditionMessage(e), call. = FALSE)
+      .terminateOnCondition(e, verbose)
   )
 
   cranBinaries <- "igraph"
@@ -64,13 +63,23 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
       return()
     }
 
+    .catJobMessage(sprintf("Installing '%s'", name), verbose)
+    install.opts <- "--no-multiarch"
+
     if (identical(name, "cairoDevice")) {
+      nl <- if (verbose) "" else "\n"
+
       if (!dir.exists(gtkroot())) {
-        warning("'cairoDevice' was skipped due to absence of GTK distribution")
-        return()
+        cat(nl)
+        stop("The GTK distribution, a 'cairoDevice' dependency, was not found")
       }
 
-      .setGtkEnvironmentVariable(silent = TRUE)
+      if (!.setGtkEnvironmentVariable(silent = TRUE)) {
+        cat(nl)
+        stop("'GTK_PATH' environment variable could not be set")
+      }
+
+      install.opts <- append(install.opts, "--no-test-load")
     }
 
     rgtk2ReadyForUse <- .pkgExists("RGtk2")
@@ -87,7 +96,6 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
       return()
     }
 
-    .catJobMessage(sprintf("Installing '%s'", name), verbose)
     tryCatch({
       devtools::install_version(
         name,
@@ -95,19 +103,19 @@ install <- function(type = c("binary", "source"), verbose = FALSE)
         repos = .cranIndex(),
         quiet = !verbose,
         upgrade = "never",
-        INSTALL_opts = "--no-multiarch"
+        INSTALL_opts = install.opts
       )
 
-      .catReportSuccess()
+      .catReportSuccess(verbose)
     },
     error = function(e) {
-      .terminateOnCondition(e)
+      .terminateOnCondition(e, verbose)
     },
     warning = function(w) {
       warnmsg <- conditionMessage(w)
 
       if (endsWith(warnmsg, "had non-zero exit status"))
-        .terminateOnCondition(w)
+        .terminateOnCondition(w, verbose)
       else
         warning(warnmsg, call. = FALSE)
     })
@@ -149,7 +157,10 @@ install_rgtk2_and_deps <-
       .catJobMessage("Checking for the Gtk distribution", verbose)
 
       if (dir.exists(gtkroot())) {
-        cat("found\n")
+        if (verbose)
+          message("Root directory for GTK distribution is ", sQuote(gtkroot()))
+        else
+          cat("found\n")
       }
       else {
         cat("missing\n")
@@ -169,28 +180,27 @@ install_rgtk2_and_deps <-
         gtk.path <- paste(gtkarch.dir, gtkarch, sep = "/")
 
         tryCatch({
-          .catJobMessage("Downloading the GTK distribution", verbose)
+          .catJobMessage("Downloading the GTK distribution", verbose = TRUE)
           gtkzip <-
             .downloadArchives(gtk.path, tmpdir, quiet = !verbose)
-          .catReportSuccess()
-        }, error = function(e) .terminateOnCondition(e))
+          .catReportSuccess(verbose)
+        }, error = function(e) .terminateOnCondition(e, verbose))
 
         tryCatch({
-          .catJobMessage("Installing the GTK distribution to 'C:\\'", verbose)
+          .catJobMessage("Installing the GTK distribution", verbose)
 
           if (!length(unzip(gtkzip, exdir = gtkroot())))
-            stop(.extractionFailMessage("GTK distribution"))
+            .extractionFailedError("GTK distribution")
 
           file.remove(gtkzip)
-          .catReportSuccess()
-        }, error = function(e) .terminateOnCondition(e))
+          .catReportSuccess(verbose)
+        }, error = function(e) .terminateOnCondition(e, verbose))
 
       }
 
       if (!.ensureBuildReadiness(verbose))
         stop(.report(FALSE)$incompat)
 
-      .setGtkEnvironmentVariable()
       rgtk2 <- "RGtk2"
 
       if (!.pkgExists(rgtk2)) {
@@ -205,12 +215,13 @@ install_rgtk2_and_deps <-
               quiet = !verbose
             )
 
-            .catReportSuccess()
+            .catReportSuccess(verbose)
           },
           error = function(e) {
-            .terminateOnCondition(e)
+            .terminateOnCondition(e, verbose)
           },
           warning = function(w) {
+            warning(conditionMessage(w), call. = FALSE)
           })
 
         }
@@ -222,31 +233,33 @@ install_rgtk2_and_deps <-
           tryCatch({
             .catJobMessage("Downloading RGtk2 archive", verbose)
             rtar <- .downloadArchives(rgtk2.cran, tmpdir, quiet = !verbose)
-            .catReportSuccess()
+            .catReportSuccess(verbose)
           },
           error = function(e)
-            .terminateOnCondition(e))
+            .terminateOnCondition(e, verbose))
 
           tryCatch({
             .catJobMessage("Extracting RGtk2 archive", verbose)
 
             if (untar(rtar, exdir = tmpdir, verbose = verbose) != 0L)
-              stop(.extractionFailMessage(rgtk2))
+              .extractionFailedError(rgtk2)
 
             file.remove(rtar)
-            .catReportSuccess()
+            .catReportSuccess(verbose)
           },
           error = function(e)
-            .terminateOnCondition(e))
+            .terminateOnCondition(e, verbose))
 
           # RGtk2 will be built from source. We use the option --no-test-load to
           # prevent attempts at loading the package, which could fail due to the
           # absence of Gtk+ binaries within the package at the time of
           # installation.
+          .setGtkEnvironmentVariable()
+
           tryCatch({
             .catJobMessage("Installing RGtk2", verbose)
 
-			devtools::install(
+            devtools::install(
               pkg = file.path(tmpdir, rgtk2),
               reload = FALSE,
               build = TRUE,
@@ -254,10 +267,10 @@ install_rgtk2_and_deps <-
               upgrade = 'never',
               quiet = !verbose
             )
-            .catReportSuccess()
+            .catReportSuccess(verbose)
           },
           error = function(e)
-            .terminateOnCondition(e))
+            .terminateOnCondition(e, verbose))
         }
       }
 
@@ -280,13 +293,13 @@ install_rgtk2_and_deps <-
         if (!all(successes))
           stop("Gtk+ was not properly copied to RGtk2", call. = FALSE)
 
-        .catReportSuccess()
+        .catReportSuccess(verbose)
       },
       error = function(e) {
         unlink(dirname(.pkgLocalGtkPath()),
                force = TRUE,
                recursive = TRUE)
-        .terminateOnCondition(e)
+        .terminateOnCondition(e, verbose)
       })
 
     }
@@ -332,12 +345,15 @@ install_rgtk2_and_deps <-
 #' @importFrom devtools has_devel
 .ensureBuildReadiness <- function(verbose)
 {
-  if (!.onWindows())
+  if (!.onWindows()) {
+    if (verbose)
+      message("Check for build tools not performed on this platform")
+
     return(TRUE)
+  }
 
   notready <- function() {
-    ready <-
-      has_devel(quiet = !verbose) && .usingCompatibleR(!verbose)
+    ready <- has_devel(quiet = TRUE) && .usingCompatibleR(!verbose)
     isFALSE(ready)
   }
 
@@ -378,16 +394,13 @@ install_rgtk2_and_deps <-
 {
   ..winInstallSoftware <- function(path) {
     tryCatch({
-      if (verbose)
-        cat("Installing ", sQuote(basename(path)), " ... ")
+      .catJobMessage(sprintf("Installing %s", sQuote(basename(path))),
+                     verbose = TRUE)
 
       shell(paste("START", path))
       readline("Press <ENTER> to continue... ")
-
-      if (verbose) message(.report()$success)
     },
     error = function(e) {
-      if (verbose) message(.report()$failure)
       warning(conditionMessage(e), call. = FALSE)
     })
   }
@@ -396,7 +409,10 @@ install_rgtk2_and_deps <-
       !any(grepl("^4\\.[0-1]", names(regkeys[[key]])))
   }
 
-  stopifnot(.onWindows())
+  stopifnot({
+    .onWindows()
+    exists("verbose", envir = environment())
+  })
 
   if (!interactive()) {
     message("Automatic installation of compatible versions of R or Rtools ",
@@ -414,9 +430,7 @@ install_rgtk2_and_deps <-
   })
 
   urls <- files <- c()
-  installerIsAvailable <- function(x, expected.length) {
 
-  }
   if (is.null(regkeys$Rtools$`4.0`)) {
     urls <-
     "https://github.com/r-windows/rtools-installer/releases/download/2022-02-06"
@@ -446,7 +460,7 @@ install_rgtk2_and_deps <-
         mode = "wb"
       )
     )
-  invisible(lapply(dpaths, ..winInstallSoftware))
+  lapply(dpaths, ..winInstallSoftware)
 }
 
 
@@ -459,6 +473,7 @@ install_rgtk2_and_deps <-
 # ---- Unified messaging ----
 .report <- function(newline = TRUE)
 {
+  stopifnot(is.logical(newline))
   p <-
     list(success = "done",
          failure = "failed",
@@ -485,7 +500,7 @@ install_rgtk2_and_deps <-
 
 # Custom error conditions for RGtk2
 .abortRgtk2 <- function() {
-  msg <- sprintf("Could not install RGtk2. Try doing so in the R console")
+  msg <- sprintf("Could not install RGtk2")
   stop(msg, call. = FALSE)
 }
 
@@ -507,6 +522,7 @@ install_rgtk2_and_deps <-
 
 # Checks the two arguments passed onto the installation functions.
 # If the checks are passed, returns the value of 'type' (does partial matching)
+#
 #' @importFrom assertthat is.string
 .validateArgs <- function(type, verbose)
 {
@@ -526,20 +542,25 @@ install_rgtk2_and_deps <-
 
 
 #' @importFrom assertthat is.string
-.extractionFailMessage <- function(str)
+.extractionFailedError <- function(str)
 {
-  stopifnot(assertthat::is.string(str))
-  sprintf("Extraction of %s failed")
+  stop(sprintf("Extraction of %s failed", sQuote(str)))
 }
 
 
 
 
 
-.terminateOnCondition <- function(cond)
+.terminateOnCondition <- function(cond, verbose = FALSE)
 {
-  stopifnot(inherits(cond, "condition"))
-  cat(.report()$failure)
+  stopifnot({
+    inherits(cond, "condition")
+    is.logical(verbose)
+  })
+
+  if (!verbose)
+    cat(.report()$failure)
+
   stop(conditionMessage(cond), call. = FALSE)
 }
 
@@ -547,9 +568,15 @@ install_rgtk2_and_deps <-
 
 
 
-.catReportSuccess <- function()
+.catReportSuccess <- function(verbose)
 {
-  cat(.report()$success)
+  stopifnot(is.logical(verbose))
+  msg <- ""
+
+  if (!verbose)
+    msg <- .report()$success
+
+  cat(msg)
 }
 
 
@@ -557,10 +584,15 @@ install_rgtk2_and_deps <-
 
 
 #' @importFrom assertthat is.string
-.catJobMessage <- function(str, ...)
+.catJobMessage <- function(str, verbose)
 {
-  stopifnot(assertthat::is.string(str))
-  cat(str, " ... ")
+  stopifnot({
+    assertthat::is.string(str)
+    is.logical(verbose)
+  })
+
+  ending <- if (verbose) "\n" else " ... "
+  cat(str, ending)
 }
 
 
@@ -683,19 +715,19 @@ gtkroot <- function() {
 
 # ToDO: Make permanent between sessions
 .setGtkEnvironmentVariable <- function(silent = FALSE) {
-  envarunset <- function()
-    identical(Sys.getenv(envarname), "")
+  envarset <- function()
+    !identical(Sys.getenv(envarname), "")
 
   envarname <- names(gtkroot())
 
-  if (envarunset()) {
+  if (!envarset()) {
     Sys.setenv(GTK_PATH = gtkroot())
 
-    if (!silent && !envarunset())
+    if (!silent && envarset())
       cat(sprintf("Environment variable %s was set\n", sQuote(envarname)))
   }
 
-  isFALSE(envarunset())
+  envarset()
 }
 
 

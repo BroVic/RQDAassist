@@ -40,12 +40,14 @@
 install <- function(type = c("binary", "source"), verbose = FALSE)
 {
   type <- .validateArgs(type, verbose)
-  .startupPrompt(type)
+
+  if (!.sourceInstallPrompt(type))
+    return(invisible())
 
   tryCatch(
     install_rgtk2_and_deps(type, verbose),
     error = function(e)
-      .terminateOnCondition(e, verbose)
+      .terminateOnCondition(e, verbose = TRUE)
   )
 
   cranBinaries <- "igraph"
@@ -358,7 +360,7 @@ install_rgtk2_and_deps <-
   }
 
   if (notready())
-    .installRRtools(verbose)
+    .installRcoreSoftware(verbose)
 
   !notready()
 }
@@ -390,22 +392,22 @@ install_rgtk2_and_deps <-
 
 
 #' @import utils
-.installRRtools <- function(verbose)
+.installRcoreSoftware <- function(verbose)
 {
-  ..winInstallSoftware <- function(path) {
+  runInstaller <- function(path) {
     tryCatch({
-      .catJobMessage(sprintf("Installing %s", sQuote(basename(path))),
+      .catJobMessage(sprintf("* Running installer %s", sQuote(basename(path))),
                      verbose = TRUE)
 
-      shell(paste("START", path))
-      readline("Press <ENTER> to continue... ")
+      out <- system(path)
+      # readline("Press <ENTER> to continue... ")
     },
     error = function(e) {
       warning(conditionMessage(e), call. = FALSE)
     })
   }
 
-  noCompatibleRversionKeys <- function(key) {
+  no_compat_rversion_keys <- function(key) {
       !any(grepl("^4\\.[0-1]", names(regkeys[[key]])))
   }
 
@@ -438,29 +440,69 @@ install_rgtk2_and_deps <-
   }
 
   if (isFALSE(.usingCompatibleR()) &&
-      (noCompatibleRversionKeys("R") || noCompatibleRversionKeys("R64"))) {
+      (no_compat_rversion_keys("R") || no_compat_rversion_keys("R64"))) {
     rUrl <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3")
     urls <- c(urls, rUrl)
     files <- c(files, "R-4.1.3-win.exe")
   }
 
   downdir <- file.path(Sys.getenv("HOME"), "Downloads")
+  numsoft <- length(files)
+  softInDownloads <- logical(numsoft)
 
-  if (!dir.exists(downdir))
+  if (dir.exists(downdir)) {
+    softInDownloads <- files %in% list.files(downdir)
+  }
+  else {
     downdir <- tempdir()
+  }
 
-  durls <- paste(urls, files, sep = "/")
-  dpaths <-
-    suppressWarnings(
-      .downloadArchives(
-        durls,
-        downdir,
-        timeout = Inf,
-        quiet = FALSE,
-        mode = "wb"
+  downpaths <- character()
+
+  if (sum(softInDownloads) < numsoft) {
+    pathRemoteSoftware <-
+      paste(urls[!softInDownloads], files[!softInDownloads], sep = "/")
+
+    tmp.paths <-
+      suppressWarnings(
+        .downloadArchives(
+          pathRemoteSoftware,
+          timeout = Inf,
+          quiet = FALSE,
+          mode = "wb"
+        )
       )
-    )
-  lapply(dpaths, ..winInstallSoftware)
+
+    downpaths <- paste(downdir, files[!softInDownloads], sep = "/")
+    notmoved <- !file.copy(tmp.paths, downpaths)
+
+    if (any(notmoved)) {
+      templocationMsg <-
+        mapply(function(file, path) { sprintf("* %s: %s", file, path) },
+               files[notmoved], downpaths[notmoved]) |>
+        unlist() |>
+        paste(collapse = "\n")
+
+      moveErrMsg <-
+        paste(
+          "There was a problem moving the downloaded file(s) from tempdir().",
+          "The software can be copied manually from this/these location(s):",
+          templocationMsg,
+          sep = "\n"
+        )
+
+      stop(moveErrMsg)
+    }
+  }
+
+  if (sum(softInDownloads) > 0L) {
+    .catJobMessage("Using installer(s) found on local machine",
+                   verbose = TRUE)
+    pathLocalSoftware <- paste(downdir, files[softInDownloads], sep = "/")
+    downpaths <- c(downpaths, pathLocalSoftware)
+  }
+
+  lapply(downpaths, runInstaller)
 }
 
 
@@ -625,23 +667,29 @@ install_rgtk2_and_deps <-
 #
 # @param urls The URL of the file to be downloaded.
 # @param destdir The directory where the file is to be saved.
+# @param timeout The download timeout in secods.
 # @param ... Additional arguments passed to `download.file`.
 #
+# @return The absolute path of the downloaded file(s).
+#
 #' @importFrom utils download.file
-.downloadArchives <- function(urls, destdir, timeout = 300, ...)
+.downloadArchives <- function(urls, destdir = NULL, timeout = 300, ...)
 {
-  stopifnot(dir.exists(destdir))
   archnames <- vapply(urls, basename, character(1))
-  downpaths <- paste(tempdir(), archnames, sep = "/")
+
+  if (is.null(destdir))
+    destdir <- tempdir()
+
+  downpaths <- paste(destdir, archnames, sep = "/")
+  downloadMethod <- "auto"
+
+  if (.onWindows() && capabilities(curl <- "libcurl"))
+    downloadMethod <- curl
+
+  arglist <- c(list(...), method = downloadMethod)
 
   tryCatch({
     oldOpts <- options(internet.info = 100, timeout = timeout)
-    downloadMethod <- "auto"
-
-    if (.onWindows() && capabilities(curl <- "libcurl"))
-      downloadMethod <- curl
-
-    arglist <- c(list(...), method = downloadMethod)
     returncodes <-
       .mapply(download.file, dots = list(urls, downpaths), MoreArgs = arglist)
     returncodes <- unlist(returncodes)
@@ -665,28 +713,7 @@ install_rgtk2_and_deps <-
   },
   finally = options(oldOpts))
 
-  destpaths <- paste(destdir, archnames, sep = "/")
-  notmoved <- !file.rename(downpaths, destpaths)
-
-  if (any(notmoved)) {
-    templocationMsg <-
-      .mapply(function(a, b) { sprintf("* %s: %s", a, b) },
-              dots = list(archnames[notmoved], downpaths[notmoved]))
-
-    templocationMsg <- paste(unlist(templocationMsg), collapse = "\n")
-
-    moveErrMsg <-
-      paste(
-        "There was a problem moving the downloaded file(s) from tempdir().",
-        "The software can be copied from this/these location(s):",
-        templocationMsg,
-        sep = "\n"
-      )
-
-    stop(moveErrMsg)
-  }
-
-  destpaths
+  paste(destdir, archnames, sep = "/")
 }
 
 
@@ -739,17 +766,18 @@ gtkroot <- function() {
 
 # Prompts the user - only once after package is loaded (see zzz.R)
 #' @importFrom assertthat is.string
-.startupPrompt <- function(inst.type)
+.sourceInstallPrompt <- function(inst.type)
 {
+  stopifnot(is.character(inst.type))
+
   if (!interactive() || inst.type == 'binary')
-    return(invisible())
+    return(TRUE)
 
   if (!as.logical(Sys.getenv("RQDA_ASST_HAS_RUN_INSTALL"))) {
     Sys.setenv(RQDA_ASST_HAS_RUN_INSTALL = TRUE)
     cont <- "Continue (Y/n)? "
-    prompt <- paste("Source installation will take some time.", cont)
-    readline_lowcase <- function() { tolower(readline(prompt)) }
-    ans <- readline_lowcase()
+    prompt1 <- paste("Source installation will take some time.", cont)
+    ans <- tolower(readline(prompt1))
 
     repeat {
       if (ans == "")
@@ -760,13 +788,15 @@ gtkroot <- function() {
       if (pos > 0)
         break
 
-      prompt <- paste("Invalid input.", cont)
-      ans <- readline_lowcase()
+      prompt2 <- paste("Invalid input.", cont)
+      ans <- tolower(readline(prompt2))
     }
 
     ans <- substr(ans, pos - 1, pos)
 
     if (ans == 'n')
-      return(invisible())
+      return(FALSE)
   }
+
+  TRUE
 }

@@ -9,7 +9,7 @@ Maintainer: Victor Ordu <victorordu@outlook.com>
 Description: Functions that make it easier to install and use the RQDA package.
 Depends: 
     R (>= 4.0),
-    RSQLite (>= 2.2.20)
+    RSQLite (>= 2.2.2)
 Imports:
     assertthat,
     devtools (>= 2.3.2),

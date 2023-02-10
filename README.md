@@ -5,8 +5,7 @@
 
 <!-- badges: start -->
 
-[![R-CMD-check](https://github.com/BroVic/RQDAassist/workflows/R-CMD-check/badge.svg)](https://github.com/BroVic/RQDAassist/actions)
-
+[![R-CMD-check](https://github.com/BroVic/RQDAassist/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/BroVic/RQDAassist/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 {[RQDA](http://rqda.r-forge.r-project.org/)}, a powerful computer-aided

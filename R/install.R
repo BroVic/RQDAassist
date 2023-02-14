@@ -422,7 +422,7 @@ install_rgtk2_and_deps <-
 
   if (!interactive()) {
     message("Automatic installation of compatible versions of R or Rtools ",
-            "can only take place during interactive sessions")
+            "can only take place during interactive R sessions")
     return()
   }
 
@@ -443,34 +443,35 @@ install_rgtk2_and_deps <-
     files <- "rtools40-x86_64.exe"
   }
 
-  if (isFALSE(.usingCompatibleR()) &&
-      (no_compat_rversion_keys("R") || no_compat_rversion_keys("R64"))) {
+  if ((no_compat_rversion_keys("R") ||
+       no_compat_rversion_keys("R64")) &&
+      isFALSE(.usingCompatibleR())) {
     rUrl <- file.path(.cranIndex(), "bin/windows/base/old/4.1.3")
     urls <- c(urls, rUrl)
     files <- c(files, "R-4.1.3-win.exe")
   }
 
+  if (numsoft <- length(files) == 0L) {
+    message("Both compatible R and Rtools were found on this system")
+    return()
+  }
+
   downdir <- file.path(Sys.getenv("HOME"), "Downloads")
-  numsoft <- length(files)
   softInDownloads <- logical(numsoft)
 
-  if (dir.exists(downdir)) {
+  if (dir.exists(downdir))
     softInDownloads <- files %in% list.files(downdir)
-  }
-  else {
+  else
     downdir <- tempdir()
-  }
 
   downpaths <- character()
 
   if (sum(softInDownloads) < numsoft) {
-    pathRemoteSoftware <-
-      paste(urls[!softInDownloads], files[!softInDownloads], sep = "/")
 
     tmp.paths <-
       suppressWarnings(
         .downloadArchives(
-          pathRemoteSoftware,
+          paste(urls[!softInDownloads], files[!softInDownloads], sep = "/"),
           timeout = Inf,
           quiet = FALSE,
           mode = "wb"
@@ -481,9 +482,11 @@ install_rgtk2_and_deps <-
     notmoved <- !file.copy(tmp.paths, downpaths)
 
     if (any(notmoved)) {
+
       templocationMsg <-
         mapply(function(file, path) { sprintf("* %s: %s", file, path) },
                files[notmoved], downpaths[notmoved])
+
       templocationMsg <- paste(unlist(templocationMsg), collapse = "\n")
 
       moveErrMsg <-
@@ -499,8 +502,7 @@ install_rgtk2_and_deps <-
   }
 
   if (sum(softInDownloads) > 0L) {
-    .catJobMessage("Using installer(s) found on local machine",
-                   verbose = TRUE)
+    .catJobMessage("Using installer(s) found on local machine", verbose = TRUE)
     pathLocalSoftware <- paste(downdir, files[softInDownloads], sep = "/")
     downpaths <- c(downpaths, pathLocalSoftware)
   }

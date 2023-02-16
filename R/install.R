@@ -17,9 +17,7 @@
 #' for the binary installation, Gtk+ is required for proper usage of RGtk2.
 #' Additionally, if compatible versions of R (i.e. 4.0 to 4.1) or Rtools
 #' (4.0) are not available on the machine, these will also be installed, but
-#' only in an interactive session (Windows only). This operations of this
-#' function are a subset of \code{install} and thus when that function is
-#' called, this one is called internally.
+#' only in an interactive session (Windows only).
 #'
 #'
 #' @param type A string, one of \code{binary} or \code{source}.

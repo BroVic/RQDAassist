@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 <!-- badges: start -->
 
-[![R-CMD-check](https://github.com/BroVic/RQDAassist/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/BroVic/RQDAassist/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/BroV ic/RQDAassist/actions/workflows/R-CMD-check-v2.yaml/badge.svg)](https://github.com/BroVic/RQDAassist/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 {[RQDA](http://rqda.r-forge.r-project.org/)}, a powerful computer-aided qualitative data analysis (CAQDAS) package, can be slightly challenging to install. This is particularly so for researchers who are not well-versed in managing R's tool sets and software extensions.

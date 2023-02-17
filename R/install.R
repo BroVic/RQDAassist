@@ -398,15 +398,14 @@ install_rgtk2_and_deps <-
 {
   runInstaller <- function(path) {
     tryCatch({
-      .catJobMessage(sprintf("* Running installer %s", sQuote(basename(path))),
-                     verbose = TRUE)
+      .catJobMessage(
+        sprintf("* Running the installer %s", sQuote(basename(path))),
+        verbose = TRUE
+      )
 
       out <- system(path)
-      # readline("Press <ENTER> to continue... ")
     },
-    error = function(e) {
-      warning(conditionMessage(e), call. = FALSE)
-    })
+    error = function(e) warning(conditionMessage(e), call. = FALSE))
   }
 
   no_compat_rversion_keys <- function(key) {
@@ -438,6 +437,7 @@ install_rgtk2_and_deps <-
   if (is.null(regkeys$Rtools$`4.0`)) {
     urls <-
     "https://github.com/r-windows/rtools-installer/releases/download/2022-02-06"
+
     files <- "rtools40-x86_64.exe"
   }
 
@@ -449,34 +449,36 @@ install_rgtk2_and_deps <-
     files <- c(files, "R-4.1.3-win.exe")
   }
 
-  if (numsoft <- length(files) == 0L) {
-    message("Both compatible R and Rtools were found on this system")
+  numsoft <- length(files)
+
+  if (numsoft == 0L) {
+    message("Compatible R and Rtools were both found on this system")
     return()
   }
 
   downdir <- file.path(Sys.getenv("HOME"), "Downloads")
-  softInDownloads <- logical(numsoft)
+  softwareInDownloads <- logical(numsoft)
 
   if (dir.exists(downdir))
-    softInDownloads <- files %in% list.files(downdir)
+    softwareInDownloads <- files %in% list.files(downdir)
   else
     downdir <- tempdir()
 
   downpaths <- character()
 
-  if (sum(softInDownloads) < numsoft) {
+  if (sum(softwareInDownloads) < numsoft) {
 
     tmp.paths <-
       suppressWarnings(
         .downloadArchives(
-          paste(urls[!softInDownloads], files[!softInDownloads], sep = "/"),
+          paste(urls[!softwareInDownloads], files[!softwareInDownloads], sep = "/"),
           timeout = Inf,
           quiet = FALSE,
           mode = "wb"
         )
       )
 
-    downpaths <- paste(downdir, files[!softInDownloads], sep = "/")
+    downpaths <- paste(downdir, files[!softwareInDownloads], sep = "/")
     notmoved <- !file.copy(tmp.paths, downpaths)
 
     if (any(notmoved)) {
@@ -499,9 +501,9 @@ install_rgtk2_and_deps <-
     }
   }
 
-  if (sum(softInDownloads) > 0L) {
+  if (sum(softwareInDownloads) > 0L) {
     .catJobMessage("Using installer(s) found on local machine", verbose = TRUE)
-    pathLocalSoftware <- paste(downdir, files[softInDownloads], sep = "/")
+    pathLocalSoftware <- paste(downdir, files[softwareInDownloads], sep = "/")
     downpaths <- c(downpaths, pathLocalSoftware)
   }
 
@@ -519,6 +521,7 @@ install_rgtk2_and_deps <-
 .report <- function(newline = TRUE)
 {
   stopifnot(is.logical(newline))
+
   p <-
     list(success = "done",
          failure = "failed",

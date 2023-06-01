@@ -30,8 +30,8 @@ For obvious reasons, this package cannot be published on CRAN. It can be
 installed from [GitHub](https://github.com/BroVic/RQDAassist) with:
 
 ``` r
-# install.packages("remotes")
-remotes::install_github("BroVic/RQDAassist")
+# install.packages("pak")
+pak::pkg_install("BroVic/RQDAassist")
 ```
 
 ## Usage
